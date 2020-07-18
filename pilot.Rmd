@@ -8,10 +8,10 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, echo = T, fig.retina = 4)
 ```
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 # Libraries
 library(tidyverse)
 
@@ -19,14 +19,56 @@ library(tidyverse)
 df <- read_csv(here::here("data", "pilot_data.csv"))
 ```
 
-## Consent
+## Main Survey
+### Consent
 
 ```{r}
 df %>% 
-  select(consent) %>% 
-  mutate(consent = as_factor(consent)) %>% 
+  mutate(consent = fct_infreq(consent)) %>% 
   ggplot(aes(consent)) +
   geom_bar()
 ```
+
+### Language Selected
+
+```{r}
+df %>% 
+  mutate(Q_Language = fct_infreq(Q_Language)) %>% 
+  ggplot(aes(Q_Language)) +
+  geom_bar() +
+  scale_y_continuous(breaks = seq(0, 10, 1))
+```
+
+### Country of origin
+
+```{r}
+df %>% 
+  mutate(bcountry = fct_infreq(bcountry)) %>% 
+  ggplot(aes(bcountry)) +
+  geom_bar() +
+  scale_y_continuous(breaks = seq(0, 10, 1)) +
+  coord_flip()
+```
+
+
+### Home country
+
+```{r}
+df %>% 
+  mutate(homeCountry = fct_infreq(homeCountry)) %>% 
+  ggplot(aes(homeCountry)) +
+  geom_bar() +
+  scale_y_continuous(breaks = seq(0, 12, 1)) +
+  coord_flip()
+```
+
+
+## SMS data from Callhub
+
+## Phone survey data
+
+## Email survey data
+
+## General data from Sierra
 
 
