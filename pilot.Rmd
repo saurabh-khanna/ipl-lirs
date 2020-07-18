@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.retina = 4)
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -19,9 +19,14 @@ library(tidyverse)
 df <- read_csv(here::here("data", "pilot_data.csv"))
 ```
 
-## Section 1
+## Consent
 
-### Subsection
+```{r}
+df %>% 
+  select(consent) %>% 
+  mutate(consent = as_factor(consent)) %>% 
+  ggplot(aes(consent)) +
+  geom_bar()
+```
 
-## Section 2
 

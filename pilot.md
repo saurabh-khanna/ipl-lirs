@@ -1,25 +1,26 @@
-LIRS IPL COVID Survey
+LIRS Rapid Response Survey
 ================
 Saurabh Khanna
 2020-07-18
 
-  - [Section 1](#section-1)
-      - [Subsection](#subsection)
-  - [Section 2](#section-2)
+  - [Consent](#consent)
 
 ``` r
 # Libraries
 library(tidyverse)
 
 # Parameters
-
-#===============================================================================
-
-# Code
+df <- read_csv(here::here("data", "pilot_data.csv"))
 ```
 
-## Section 1
+## Consent
 
-### Subsection
+``` r
+df %>% 
+  select(consent) %>% 
+  mutate(consent = as_factor(consent)) %>% 
+  ggplot(aes(consent)) +
+  geom_bar()
+```
 
-## Section 2
+<img src="pilot_files/figure-gfm/unnamed-chunk-2-1.png" width="672" />
