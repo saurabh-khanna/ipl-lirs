@@ -1,0 +1,27 @@
+---
+title: LIRS Rapid Response Survey
+author: Saurabh Khanna
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+library(tidyverse)
+
+# Parameters
+df <- read_csv(here::here("data", "pilot_data.csv"))
+```
+
+## Section 1
+
+### Subsection
+
+## Section 2
+
