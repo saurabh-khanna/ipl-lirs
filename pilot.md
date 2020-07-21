@@ -6,12 +6,10 @@ Saurabh Khanna
   - [Main Survey](#main-survey)
       - [Consent](#consent)
       - [Language Selected](#language-selected)
+      - [Survey Duration](#survey-duration)
       - [Country of origin](#country-of-origin)
       - [Home country](#home-country)
-  - [SMS data from Callhub](#sms-data-from-callhub)
-  - [Phone survey data](#phone-survey-data)
-  - [Email survey data](#email-survey-data)
-  - [General data from Sierra](#general-data-from-sierra)
+      - [Ethnic origin](#ethnic-origin)
 
 ## Main Survey
 
@@ -23,18 +21,18 @@ Saurabh Khanna
 
 <img src="pilot_files/figure-gfm/unnamed-chunk-3-1.png" width="672" />
 
-### Country of origin
+### Survey Duration
 
 <img src="pilot_files/figure-gfm/unnamed-chunk-4-1.png" width="672" />
 
-### Home country
+### Country of origin
 
 <img src="pilot_files/figure-gfm/unnamed-chunk-5-1.png" width="672" />
 
-## SMS data from Callhub
+### Home country
 
-## Phone survey data
+<img src="pilot_files/figure-gfm/unnamed-chunk-6-1.png" width="672" />
 
-## Email survey data
+### Ethnic origin
 
-## General data from Sierra
+<img src="pilot_files/figure-gfm/unnamed-chunk-7-1.png" width="672" />

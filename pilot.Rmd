@@ -24,7 +24,7 @@ df <- read_csv(here::here("data", "pilot_data.csv"))
 
 ```{r}
 df %>% 
-  mutate(consent = fct_infreq(consent)) %>% 
+  mutate(consent = fct_infreq(consent) %>% fct_rev()) %>% 
   ggplot(aes(consent)) +
   geom_bar()
 ```
@@ -32,22 +32,42 @@ df %>%
 ### Language Selected
 
 ```{r}
-df %>% 
-  mutate(Q_Language = fct_infreq(Q_Language)) %>% 
+df %>%
+  mutate(Q_Language = fct_infreq(Q_Language) %>% fct_rev()) %>% 
   ggplot(aes(Q_Language)) +
   geom_bar() +
-  scale_y_continuous(breaks = seq(0, 10, 1))
+  scale_y_continuous(breaks = seq(0, 10, 1)) +
+  labs(
+    x = "Language selected"
+  )
+```
+
+### Survey Duration
+
+```{r}
+df %>% 
+  filter(Q_TotalDuration <= 7200) %>% 
+  #select(Q_TotalDuration) %>% summary()
+  mutate(Q_TotalDuration = Q_TotalDuration / 60) %>% 
+  ggplot(aes(Q_TotalDuration)) +
+  geom_histogram(binwidth = 5) +
+  geom_vline(aes(xintercept = median(Q_TotalDuration)), linetype = "dashed", color = "red", size = 1) +
+  scale_x_continuous(breaks = scales::breaks_width(5)) +
+  labs(x = "Survey Duration")
 ```
 
 ### Country of origin
 
 ```{r}
 df %>% 
-  mutate(bcountry = fct_infreq(bcountry)) %>% 
+  mutate(bcountry = fct_infreq(bcountry) %>% fct_rev()) %>% 
   ggplot(aes(bcountry)) +
   geom_bar() +
   scale_y_continuous(breaks = seq(0, 10, 1)) +
-  coord_flip()
+  coord_flip() +
+  labs(
+    x = "Coutry of origin"
+  )
 ```
 
 
@@ -55,20 +75,27 @@ df %>%
 
 ```{r}
 df %>% 
-  mutate(homeCountry = fct_infreq(homeCountry)) %>% 
+  mutate(homeCountry = fct_infreq(homeCountry) %>% fct_rev()) %>% 
   ggplot(aes(homeCountry)) +
+  geom_bar() +
+  scale_y_continuous(breaks = seq(0, 12, 1)) +
+  coord_flip() +
+  labs(
+    x = "Home country"
+  )
+```
+
+### Ethnic origin
+
+```{r}
+df %>% 
+  mutate(ethnicOrigin = fct_infreq(ethnicOrigin) %>% fct_rev()) %>% 
+  ggplot(aes(ethnicOrigin)) +
   geom_bar() +
   scale_y_continuous(breaks = seq(0, 12, 1)) +
   coord_flip()
 ```
 
 
-## SMS data from Callhub
-
-## Phone survey data
-
-## Email survey data
-
-## General data from Sierra
 
 
