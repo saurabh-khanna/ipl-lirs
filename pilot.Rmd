@@ -1,11 +1,14 @@
 ---
 title: LIRS Rapid Response Survey
-author: Saurabh Khanna
+author: Saurabh Khanna & Michael Hotard
 date: "`r Sys.Date()`"
 output: 
-  github_document:
+  pdf_document:
     toc: true
+    toc_depth: 3
+    number_sections: true
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
@@ -14,35 +17,400 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, echo = FALS
 ```{r}
 # Libraries
 library(tidyverse)
+library(statar)
+library(openxlsx)
 
 # Parameters
 df <- read_csv(here::here("data", "pilot_data.csv"))
 ```
 
-## Main Survey
-### Consent
+
+```{r}
+# Defining factors (from Michael's code)
+df$siv <- factor(df$siv,
+                 levels = c("Yes",
+                            "No",
+                            "I don't know"))
+
+df$citizen <-  factor(df$citizen,
+                      levels = c("Yes", 
+                                 "No"))
+
+
+df$usTies <- factor(df$usTies,
+                    levels = c("Yes, I registered a United States contact before arriving",
+                               "Yes, I have some acquaintances or relatives (but did not register a contact)",
+                               "No, I did not know anyone in the United States"))
+
+df$cosponsorship <- factor(df$cosponsorship,
+                           levels = c("Yes",
+                                      "No"))
+
+df$maritalStatus <- factor(df$maritalStatus,
+                           levels = c("Now married", 
+                                      "Widowed",
+                                      "Divorced",
+                                      "Separated",
+                                      "Never married",
+                                      "Other"))
+
+
+df$gender <- factor(df$gender,
+                    levels = c("Female", 
+                               "Male",
+                               "Non-binary",
+                               "Transgender",
+                               "Prefer not to say", 
+                               "Prefer to self-describe"))
+
+
+df$educationLevel <- factor(df$educationLevel, 
+                            levels = c(
+                              "No formal education", 
+                              "Primary education (6 years or less)",
+                              "Some high school (between 6 – 12 years)",
+                              "High school (12 + years)",
+                              "Some vocational training",
+                              "Completed vocational training",
+                              "Some university",
+                              "Received university degree",
+                              "Received Master’s degree or higher"))
+
+
+df$whatsAppConsent <- factor(df$whatsAppConsent, 
+                             levels = c("Yes", 
+                                        "No"))
+
+
+df$languageSurvey <- factor(df$languageSurvey,
+                            levels = c("Arabic",
+                                       "Dari/Farsi",
+                                       "English",
+                                       "French",
+                                       "Russian",
+                                       "Spanish",
+                                       "Swahili"))
+
+
+
+df$textConsent <- factor(df$textConsent, 
+                         levels = c("Yes", 
+                                    "No"))
+
+
+# df$followUpSurveyType <- factor(df$followUpSurveyType,
+#                                 levels = c("SMS",
+#                                            "WhatsApp"))
+
+
+df$hoursWorkedJanuary <- factor(df$hoursWorkedJanuary, 
+                                levels = c("Less than 10", 
+                                           "10 - 20",
+                                           "20 - 35",
+                                           "35 or more"))
+
+
+df$housingJanuary <- factor(df$housingJanuary,
+                            levels = c("House",
+                                       "Apartment",
+                                       "Mobile home",
+                                       "Other type of housing",
+                                       "No housing (homeless)"))
+
+
+df$housingPaymentJanuary <- factor(df$housingPaymentJanuary,
+                                   levels = c("Owned free and clear",
+                                              "Owned with a mortgage or loan (including home equity loans)",
+                                              "Rented",
+                                              "Occupied without payment of rent"))
+
+df$housingRentJanuary <- factor(df$housingRentJanuary, 
+                                levels = c("Yes",
+                                           "No",
+                                           "Payment was deferred"))
+
+
+df$foodSecurity1January <- factor(df$foodSecurity1Baseline,
+                                  level = c("Enough of the kinds of food (I/we) wanted to eat",
+                                            "Enough, but not always the kinds of food (I/we) wanted to eat",
+                                            "Sometimes not enough to eat",
+                                            "Often not enough to eat"))
+
+df$foodSecurity3January <- factor(df$foodSecurity3January, 
+                                  levels = c("Yes",
+                                             "No",
+                                             "Payment was deferred"))
+
+df$foodSecurity4January <- factor(df$foodSecurity4January,
+                                  level = c("Not at all confident",
+                                            "Somewhat confident",
+                                            "Moderately confident",
+                                            "Very confident"))
+
+df$healthJanuary <- factor(df$healthJanuary, 
+                           levels = c("Excellent",
+                                      "Very good",
+                                      "Good",
+                                      "Fair",
+                                      "Poor"))
+
+df$workStatusJanuary <- factor(df$workStatusJanuary,
+                               level = c("In paid work (employee, self-employed, working for your family business)",
+                                         "In school, even if on vacation",
+                                         "Unemployed and actively looking for a job",
+                                         "Unemployed and not actively looking for a job",
+                                         "Permanently sick or disabled",
+                                         "Retired",
+                                         "In military service",
+                                         "In community service",
+                                         "Doing unpaid housework, looking after children or other persons",
+                                         "Other (please specify)"))
+
+
+df$schoolJanuary <- factor(df$schoolJanuary, 
+                           levels = c("Yes, enrolled in a public or private school",
+                                      "Yes, homeschooled",
+                                      "No"))
+
+
+
+df$hoursWorkedBaseline <- factor(df$hoursWorkedBaseline, 
+                                 levels = c("Less than 10", 
+                                            "10 - 20",
+                                            "20 - 35",
+                                            "35 or more"))
+
+
+
+
+df$housingBaseline <- factor(df$housingBaseline,
+                             levels = c("House",
+                                        "Apartment",
+                                        "Mobile home",
+                                        "Other type of housing",
+                                        "No housing (homeless)"))
+
+
+df$housingPaymentBaseline <- factor(df$housingPaymentBaseline,
+                                    levels = c("Owned free and clear",
+                                               "Owned with a mortgage or loan (including home equity loans)",
+                                               "Rented",
+                                               "Occupied without payment of rent"))
+
+df$housingRentBaseline <- factor(df$housingRentBaseline, 
+                                 levels = c("Yes",
+                                            "No",
+                                            "Payment was deferred"))
+
+df$foodSecurity1Baseline <- factor(df$foodSecurity1Baseline,
+                                   levels = c("Enough of the kinds of food (I/we) wanted to eat",
+                                              "Enough, but not always the kinds of food (I/we) wanted to eat",
+                                              "Sometimes not enough to eat",
+                                              "Often not enough to eat"))
+
+df$foodSecurity3Baseline <- factor(df$foodSecurity3Baseline, 
+                                   levels = c("Yes",
+                                              "No",
+                                              "Payment was deferred"))
+
+df$foodSecurity4Baseline <- factor(df$foodSecurity4Baseline,
+                                   level = c("Not at all confident",
+                                             "Somewhat confident",
+                                             "Moderately confident",
+                                             "Very confident"))
+
+df$healthBaseline <- factor(df$healthBaseline, 
+                            levels = c("Excellent",
+                                       "Very good",
+                                       "Good",
+                                       "Fair",
+                                       "Poor"))
+
+df$workStatus <- factor(df$workStatus,
+                        level = c("In paid work (employee, self-employed, working for your family business)",
+                                  "In school, even if on vacation",
+                                  "Unemployed and actively looking for a job",
+                                  "Unemployed and not actively looking for a job",
+                                  "Permanently sick or disabled",
+                                  "Retired",
+                                  "In military service",
+                                  "In community service",
+                                  "Doing unpaid housework, looking after children or other persons",
+                                  "Other (please specify)"))
+
+
+df$unemploymentBeneBaseline  <- factor(df$unemploymentBeneBaseline,
+                                       levels = c("Yes",
+                                                  "No"))
+
+df$caresStimulusBaseline  <- factor(df$caresStimulusBaseline,
+                                    levels = c("Yes",
+                                               "No"))
+
+workLocationBaseline <- factor(df$workLocationBaseline,
+                               levels = c("I work from home",
+                                          "I go to a location to work, such as an office, store, or work site",
+                                          "Other"))
+
+df$nervousBaseline  <- factor(df$nervousBaseline,
+                              levels = c("All of the time",
+                                         "Most of the time",
+                                         "Some of the time",
+                                         "A little of the time",
+                                         "None of the time"))
+
+df$delayCareBaseline <- factor(df$delayCareBaseline,
+                               levels = c("Yes",
+                                          "No"))
+
+df$avoidCareBaseline <- factor(df$avoidCareBaseline,
+                               levels = c("Yes",
+                                          "No"))
+
+df$educationBaseline <- factor(df$educationBaseline,
+                               levels = c("Classes normally taught in person at the school were cancelled",
+                                          "Classes normally taught in person were moved to a distance-learning format using online resources, either self-paced or in real time",
+                                          "Classes normally taught in person were moved to a distance-learning format using paper materials sent home to children",
+                                          "Classes normally taught in person were changed in some other way -- Please specify:",
+                                          "There was no change because schools did not close"))
+
+df$internetBaseline <- factor(df$internetBaseline,
+                              levels = c("Always available",
+                                         "Usually available",
+                                         "Sometimes available",
+                                         "Rarely available",
+                                         "Never available"))
+
+df$connectionHc <- factor(df$connectionHc,
+                          levels = c("I feel an extremely close connection",
+                                     "I feel a very close connection",
+                                     "I feel a moderately close connection",
+                                     "I feel a weak connection",
+                                     "I do not feel a connection at all"))
+
+df$outsider <- factor(df$outsider,
+                      levels = c("Never",
+                                 "Rarely",
+                                 "Sometimes",
+                                 "Often",
+                                 "Always"))
+
+df$polUnderstanding <- factor(df$polUnderstanding,
+                              levels = c("Very well",
+                                         "Well",
+                                         "Moderately well",
+                                         "Not well",
+                                         "Not well at all"))
+
+df$polDiscuss <- factor(df$polDiscuss,
+                        levels = c("Never",
+                                   "Once a year",
+                                   "Once a month",
+                                   "Once a week",
+                                   "Almost every day"))
+
+df$dinner <- factor(df$dinner,
+                    levels = c("Never",
+                               "Once a year",
+                               "Once a month",
+                               "Once a week",
+                               "Almost every day"))
+
+df$contactsInUs <- factor(df$contactsInUs,
+                          levels = c("0",
+                                     "1 to 2",
+                                     "3 to 6",
+                                     "7 to 14",
+                                     "15 or more"))
+
+df$read <- factor(df$read,
+                  levels = c("Not well at all",
+                             "Not well",
+                             "Moderately well",
+                             "Well",
+                             "Very well"))
+
+df$speak <- factor(df$speak,
+                   levels = c("Not well at all",
+                              "Not well",
+                              "Moderately well",
+                              "Well",
+                              "Very well"))
+
+df$seeDoctor <- factor(df$seeDoctor,
+                       levels = c("Very difficult",
+                                  "Somewhat difficult",
+                                  "Neither difficult, nor easy",
+                                  "Somewhat easy",
+                                  "Very easy"))
+
+df$searchJob <- factor(df$searchJob,
+                       levels = c("Very difficult",
+                                  "Somewhat difficult",
+                                  "Neither difficult, nor easy",
+                                  "Somewhat easy",
+                                  "Very easy"))
+
+```
+
+
+# Survey metrics
+## Consent
 
 ```{r}
 df %>% 
-  mutate(consent = fct_infreq(consent) %>% fct_rev()) %>% 
-  ggplot(aes(consent)) +
-  geom_bar()
+  mutate(consent = fct_infreq(consent)) %>% 
+  count(consent) %>% 
+  ggplot(aes(consent, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3.5)
 ```
 
-### Language Selected
+## Whatsapp consent
+
+```{r}
+df %>% 
+  mutate(
+    whatsAppConsent = whatsAppConsent %>% as.character(),
+    whatsAppConsent = if_else(is.na(whatsAppConsent), "No", whatsAppConsent) %>% fct_infreq()
+  ) %>% 
+  count(whatsAppConsent) %>% 
+  ggplot(aes(whatsAppConsent, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3.5)
+```
+
+## Text consent
+
+```{r}
+df %>% 
+  drop_na(textConsent) %>% 
+  mutate(textConsent = fct_infreq(textConsent) %>% fct_rev()) %>% 
+  count(textConsent) %>% 
+  ggplot(aes(textConsent, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3.5) +
+  scale_y_continuous(breaks = seq(0, 10, 1))
+```
+
+
+## Language Selected
 
 ```{r}
 df %>%
+  drop_na(Q_Language) %>% 
   mutate(Q_Language = fct_infreq(Q_Language) %>% fct_rev()) %>% 
-  ggplot(aes(Q_Language)) +
-  geom_bar() +
+  count(Q_Language) %>% 
+  ggplot(aes(Q_Language, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3.5) +
   scale_y_continuous(breaks = seq(0, 10, 1)) +
   labs(
     x = "Language selected"
   )
 ```
 
-### Survey Duration
+## Survey Duration
 
 ```{r}
 df %>% 
@@ -53,16 +421,35 @@ df %>%
   geom_histogram(binwidth = 5) +
   geom_vline(aes(xintercept = median(Q_TotalDuration)), linetype = "dashed", color = "red", size = 1) +
   scale_x_continuous(breaks = scales::breaks_width(5)) +
-  labs(x = "Survey Duration")
+  labs(x = "Survey Duration (minutes)", caption = "The red dotted line represents the median")
 ```
 
-### Country of origin
+\newpage
+
+# Participant background
+
+## Gender
 
 ```{r}
 df %>% 
+  drop_na(gender) %>% 
+  count(gender) %>% 
+  ggplot(aes(gender, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3.5)
+```
+
+
+## Country of origin
+
+```{r}
+df %>% 
+  drop_na(bcountry) %>% 
   mutate(bcountry = fct_infreq(bcountry) %>% fct_rev()) %>% 
-  ggplot(aes(bcountry)) +
-  geom_bar() +
+  count(bcountry) %>% 
+  ggplot(aes(bcountry, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), hjust = -0.5, size = 3.5) +
   scale_y_continuous(breaks = seq(0, 10, 1)) +
   coord_flip() +
   labs(
@@ -71,13 +458,16 @@ df %>%
 ```
 
 
-### Home country
+## Home country
 
 ```{r}
 df %>% 
+  drop_na(homeCountry) %>% 
   mutate(homeCountry = fct_infreq(homeCountry) %>% fct_rev()) %>% 
-  ggplot(aes(homeCountry)) +
-  geom_bar() +
+  count(homeCountry) %>% 
+  ggplot(aes(homeCountry, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), hjust = -0.5, size = 3.5) +
   scale_y_continuous(breaks = seq(0, 12, 1)) +
   coord_flip() +
   labs(
@@ -85,16 +475,193 @@ df %>%
   )
 ```
 
-### Ethnic origin
+## Ethnic origin
 
 ```{r}
 df %>% 
+  drop_na(ethnicOrigin) %>% 
   mutate(ethnicOrigin = fct_infreq(ethnicOrigin) %>% fct_rev()) %>% 
-  ggplot(aes(ethnicOrigin)) +
-  geom_bar() +
+  count(ethnicOrigin) %>% 
+  ggplot(aes(ethnicOrigin, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), hjust = -0.5, size = 3.5) +
   scale_y_continuous(breaks = seq(0, 12, 1)) +
   coord_flip()
 ```
+
+## Years of Education 
+
+```{r}
+df %>% 
+  drop_na(educationYears) %>% 
+  ggplot(aes(educationYears)) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(aes(xintercept = median(educationYears)), linetype = "dashed", color = "red", size = 1) +
+  scale_x_continuous(breaks = scales::breaks_width(1)) +
+  labs(caption = "The red dotted line represents the median")
+```
+
+## Level of Education
+
+```{r}
+df %>% 
+  drop_na(educationLevel) %>% 
+  count(educationLevel) %>% 
+  ggplot(aes(educationLevel, n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), hjust = -0.5, size = 3.5) +
+  coord_flip()
+```
+
+## Year of arrival
+
+```{r}
+df %>% 
+  drop_na(yearArrive) %>% 
+  ggplot(aes(yearArrive)) +
+  geom_bar() +
+  scale_x_continuous(breaks = scales::breaks_width(1)) +
+  scale_y_continuous(breaks = scales::breaks_width(1))
+```
+
+## Household size
+
+```{r}
+df %>% 
+  drop_na(householdSize) %>% 
+  ggplot(aes(householdSize, y = stat(count))) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(aes(xintercept = median(householdSize)), linetype = "dashed", color = "red", size = 1) +
+  scale_x_continuous(breaks = scales::breaks_width(1)) +
+  scale_y_continuous(breaks = scales::breaks_width(1)) +
+  labs(caption = "The red dotted line represents the median")
+```
+
+## Household children
+
+```{r}
+df %>% 
+  drop_na(householdChildren) %>% 
+  ggplot(aes(householdChildren, y = stat(count))) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(aes(xintercept = median(householdChildren)), linetype = "dashed", color = "red", size = 1) +
+  scale_x_continuous(breaks = scales::breaks_width(1)) +
+  scale_y_continuous(breaks = scales::breaks_width(1)) +
+  labs(caption = "The red dotted line represents the median")
+```
+
+
+\newpage
+
+# Question-wise charts
+
+## Overall
+
+```{r, error=TRUE}
+# Extracting all defined factor columns
+colnames <- df %>% select_if(is.factor) %>% names
+
+for (col in colnames) {
+  print(df[, col] %>% table() %>% knitr::kable(col.names = c(col, "Count")))
+  
+  x <- df[, col] %>% unlist()
+  x <- x[!is.na(x)]
+  print(
+    ggplot(df %>% drop_na(col), aes(x)) +
+      geom_bar() +
+      coord_flip() +
+      labs(x = col)
+  )
+}
+```
+
+
+\newpage
+
+## Breakdown by language
+
+```{r, error=TRUE}
+for (col in colnames) {
+  x <- df[, col] %>% unlist()
+  x <- x[!is.na(x)]
+  print(
+    ggplot(df %>% drop_na(col), aes(x)) +
+      geom_bar() +
+      coord_flip() +
+      labs(x = col) +
+      facet_wrap(~ Q_Language)
+  )
+}
+```
+
+
+\newpage
+
+## Breakdown by year of arrival
+
+```{r, error=TRUE}
+df <-
+  df %>% 
+  mutate(
+    Arrival = if_else(yearArrive < 2015, "2015 or earlier", "After 2015") %>% as_factor() %>% fct_rev()
+  )
+
+for (col in colnames) {
+  x <- df[, col] %>% unlist()
+  x <- x[!is.na(x)]
+  print(
+    ggplot(df %>% drop_na(col), aes(x)) +
+      geom_bar() +
+      coord_flip() +
+      labs(x = col) +
+      facet_wrap(~ Arrival)
+  )
+}
+```
+
+
+\newpage
+
+## Breakdown by survey mode (self vs phone)
+
+```{r, error=TRUE}
+df <- df %>% mutate(surveyMode = surveyMode %>% fct_rev())
+
+for (col in colnames) {
+  x <- df[, col] %>% unlist()
+  x <- x[!is.na(x)]
+  print(
+    ggplot(df %>% drop_na(col), aes(x)) +
+      geom_bar() +
+      coord_flip() +
+      labs(x = col) +
+      facet_wrap(~ surveyMode)
+  )
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

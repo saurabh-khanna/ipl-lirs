@@ -1,0 +1,539 @@
+---
+title: LIRS Rapid Response Survey
+#author: Saurabh Khanna
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+```
+
+```{r}
+# Libraries
+library(tidyverse)
+library(statar)
+library(openxlsx)
+
+# Parameters
+df <- read_csv(here::here("data", "pilot_data.csv"))
+var_info <- read.xlsx(here::here("data", "dataDictionary.xlsx"))
+```
+
+```{r}
+df$followUpSurveyType <- NA
+df$followUpSurveyType[!is.na(df$whatsAppNumber.WhatsApp.number)] <- "WhatsApp"
+df$followUpSurveyType[!is.na(df$phoneText.Phone.number)] <- "SMS"
+df %>% tab(followUpSurveyType, consent)
+
+df$houseHoldIncome <- df$hhInc
+df$houseHoldIncome[df$up1stQ == "Below 25,000 Dollars"] <- 20000
+df %>% tab(up2ndQ)
+df %>% tab(up1stQ)
+df %>% tab(up3rdQ)
+
+
+df$siv <- factor(df$siv,
+                 levels = c("Yes",
+                            "No",
+                            "I don't know"))
+
+df$citizen <-  factor(df$citizen,
+                      levels = c("Yes", 
+                                 "No"))
+
+
+df$usTies <- factor(df$usTies,
+                    levels = c("Yes, I registered a United States contact before arriving",
+                               "Yes, I have some acquaintances or relatives (but did not register a contact)",
+                               "No, I did not know anyone in the United States"))
+
+df$cosponsorship <- factor(df$cosponsorship,
+                           levels = c("Yes",
+                                      "No"))
+
+df$maritalStatus <- factor(df$maritalStatus,
+                           levels = c("Now married", 
+                                      "Widowed",
+                                      "Divorced",
+                                      "Separated",
+                                      "Never married",
+                                      "Other"))
+
+
+df$gender <- factor(df$gender,
+                    levels = c("Female", 
+                               "Male",
+                               "Non-binary",
+                               "Transgender",
+                               "Prefer not to say", 
+                               "Prefer to self-describe"))
+
+
+df$educationLevel <- factor(df$educationLevel, 
+                            levels = c(
+                              "No formal education", 
+                              "Primary education (6 years or less)",
+                              "Some high school (between 6 – 12 years)",
+                              "High school (12 + years)",
+                              "Some vocational training",
+                              "Completed vocational training",
+                              "Some university",
+                              "Received university degree",
+                              "Received Master’s degree or higher"))
+
+
+df$whatsAppConsent <- factor(df$whatsAppConsent, 
+                             levels = c("Yes", 
+                                        "No"))
+
+
+df$languageSurvey <- factor(df$languageSurvey,
+                            levels = c("Arabic",
+                                       "Dari/Farsi",
+                                       "English",
+                                       "French",
+                                       "Russian",
+                                       "Spanish",
+                                       "Swahili"))
+
+
+
+df$textConsent <- factor(df$textConsent, 
+                         levels = c("Yes", 
+                                    "No"))
+
+
+df$followUpSurveyType <- factor(df$followUpSurveyType,
+                                levels = c("SMS",
+                                           "WhatsApp"))
+
+df$hoursWorkedJanuary <- factor(df$hoursWorkedJanuary, 
+                                levels = c("Less than 10", 
+                                           "10 - 20",
+                                           "20 - 35",
+                                           "35 or more"))
+
+
+df$housingJanuary <- factor(df$housingJanuary,
+                            levels = c("House",
+                                       "Apartment",
+                                       "Mobile home",
+                                       "Other type of housing",
+                                       "No housing (homeless)"))
+
+
+df$housingPaymentJanuary <- factor(df$housingPaymentJanuary,
+                                   levels = c("Owned free and clear",
+                                              "Owned with a mortgage or loan (including home equity loans)",
+                                              "Rented",
+                                              "Occupied without payment of rent"))
+
+df$housingRentJanuary <- factor(df$housingRentJanuary, 
+                                levels = c("Yes",
+                                           "No",
+                                           "Payment was deferred"))
+
+
+df$foodSecurity1January <- factor(df$foodSecurity1Baseline,
+                                  level = c("Enough of the kinds of food (I/we) wanted to eat",
+                                            "Enough, but not always the kinds of food (I/we) wanted to eat",
+                                            "Sometimes not enough to eat",
+                                            "Often not enough to eat"))
+
+df$foodSecurity3January <- factor(df$foodSecurity3January, 
+                                  levels = c("Yes",
+                                             "No",
+                                             "Payment was deferred"))
+
+df$foodSecurity4January <- factor(df$foodSecurity4January,
+                                  level = c("Not at all confident",
+                                            "Somewhat confident",
+                                            "Moderately confident",
+                                            "Very confident"))
+
+df$healthJanuary <- factor(df$healthJanuary, 
+                           levels = c("Excellent",
+                                      "Very good",
+                                      "Good",
+                                      "Fair",
+                                      "Poor"))
+
+df$workStatusJanuary <- factor(df$workStatusJanuary,
+                               level = c("In paid work (employee, self-employed, working for your family business)",
+                                         "In school, even if on vacation",
+                                         "Unemployed and actively looking for a job",
+                                         "Unemployed and not actively looking for a job",
+                                         "Permanently sick or disabled",
+                                         "Retired",
+                                         "In military service",
+                                         "In community service",
+                                         "Doing unpaid housework, looking after children or other persons",
+                                         "Other (please specify)"))
+
+
+df$schoolJanuary <- factor(df$schoolJanuary, 
+                           levels = c("Yes, enrolled in a public or private school",
+                                      "Yes, homeschooled",
+                                      "No"))
+
+
+
+df$hoursWorkedBaseline <- factor(df$hoursWorkedBaseline, 
+                                 levels = c("Less than 10", 
+                                            "10 - 20",
+                                            "20 - 35",
+                                            "35 or more"))
+
+
+
+
+df$housingBaseline <- factor(df$housingBaseline,
+                             levels = c("House",
+                                        "Apartment",
+                                        "Mobile home",
+                                        "Other type of housing",
+                                        "No housing (homeless)"))
+
+
+df$housingPaymentBaseline <- factor(df$housingPaymentBaseline,
+                                    levels = c("Owned free and clear",
+                                               "Owned with a mortgage or loan (including home equity loans)",
+                                               "Rented",
+                                               "Occupied without payment of rent"))
+
+df$housingRentBaseline <- factor(df$housingRentBaseline, 
+                                 levels = c("Yes",
+                                            "No",
+                                            "Payment was deferred"))
+
+df$foodSecurity1Baseline <- factor(df$foodSecurity1Baseline,
+                                   levels = c("Enough of the kinds of food (I/we) wanted to eat",
+                                              "Enough, but not always the kinds of food (I/we) wanted to eat",
+                                              "Sometimes not enough to eat",
+                                              "Often not enough to eat"))
+
+df$foodSecurity3Baseline <- factor(df$foodSecurity3Baseline, 
+                                   levels = c("Yes",
+                                              "No",
+                                              "Payment was deferred"))
+
+df$foodSecurity4Baseline <- factor(df$foodSecurity4Baseline,
+                                   level = c("Not at all confident",
+                                             "Somewhat confident",
+                                             "Moderately confident",
+                                             "Very confident"))
+
+df$healthBaseline <- factor(df$healthBaseline, 
+                            levels = c("Excellent",
+                                       "Very good",
+                                       "Good",
+                                       "Fair",
+                                       "Poor"))
+
+df$workStatus <- factor(df$workStatus,
+                        level = c("In paid work (employee, self-employed, working for your family business)",
+                                  "In school, even if on vacation",
+                                  "Unemployed and actively looking for a job",
+                                  "Unemployed and not actively looking for a job",
+                                  "Permanently sick or disabled",
+                                  "Retired",
+                                  "In military service",
+                                  "In community service",
+                                  "Doing unpaid housework, looking after children or other persons",
+                                  "Other (please specify)"))
+
+
+df$unemploymentBeneBaseline  <- factor(df$unemploymentBeneBaseline,
+                                       levels = c("Yes",
+                                                  "No"))
+
+df$caresStimulusBaseline  <- factor(df$caresStimulusBaseline,
+                                    levels = c("Yes",
+                                               "No"))
+
+workLocationBaseline <- factor(df$workLocationBaseline,
+                               levels = c("I work from home",
+                                          "I go to a location to work, such as an office, store, or work site",
+                                          "Other"))
+
+df$nervousBaseline  <- factor(df$nervousBaseline,
+                              levels = c("All of the time",
+                                         "Most of the time",
+                                         "Some of the time",
+                                         "A little of the time",
+                                         "None of the time"))
+
+df$delayCareBaseline <- factor(df$delayCareBaseline,
+                               levels = c("Yes",
+                                          "No"))
+
+df$avoidCareBaseline <- factor(df$avoidCareBaseline,
+                               levels = c("Yes",
+                                          "No"))
+
+df$educationBaseline <- factor(df$educationBaseline,
+                               levels = c("Classes normally taught in person at the school were cancelled",
+                                          "Classes normally taught in person were moved to a distance-learning format using online resources, either self-paced or in real time",
+                                          "Classes normally taught in person were moved to a distance-learning format using paper materials sent home to children",
+                                          "Classes normally taught in person were changed in some other way -- Please specify:",
+                                          "There was no change because schools did not close"))
+
+df$internetBaseline <- factor(df$internetBaseline,
+                              levels = c("Always available",
+                                         "Usually available",
+                                         "Sometimes available",
+                                         "Rarely available",
+                                         "Never available"))
+
+df$connectionHc <- factor(df$connectionHc,
+                          levels = c("I feel an extremely close connection",
+                                     "I feel a very close connection",
+                                     "I feel a moderately close connection",
+                                     "I feel a weak connection",
+                                     "I do not feel a connection at all"))
+
+df$outsider <- factor(df$outsider,
+                      levels = c("Never",
+                                 "Rarely",
+                                 "Sometimes",
+                                 "Often",
+                                 "Always"))
+
+df$polUnderstanding <- factor(df$polUnderstanding,
+                              levels = c("Very well",
+                                         "Well",
+                                         "Moderately well",
+                                         "Not well",
+                                         "Not well at all"))
+
+df$polDiscuss <- factor(df$polDiscuss,
+                        levels = c("Never",
+                                   "Once a year",
+                                   "Once a month",
+                                   "Once a week",
+                                   "Almost every day"))
+
+df$dinner <- factor(df$dinner,
+                    levels = c("Never",
+                               "Once a year",
+                               "Once a month",
+                               "Once a week",
+                               "Almost every day"))
+
+df$contactsInUs <- factor(df$contactsInUs,
+                          levels = c("0",
+                                     "1 to 2",
+                                     "3 to 6",
+                                     "7 to 14",
+                                     "15 or more"))
+
+df$read <- factor(df$read,
+                  levels = c("Not well at all",
+                             "Not well",
+                             "Moderately well",
+                             "Well",
+                             "Very well"))
+
+df$speak <- factor(df$speak,
+                   levels = c("Not well at all",
+                              "Not well",
+                              "Moderately well",
+                              "Well",
+                              "Very well"))
+
+df$seeDoctor <- factor(df$seeDoctor,
+                       levels = c("Very difficult",
+                                  "Somewhat difficult",
+                                  "Neither difficult, nor easy",
+                                  "Somewhat easy",
+                                  "Very easy"))
+
+df$searchJob <- factor(df$searchJob,
+                       levels = c("Very difficult",
+                                  "Somewhat difficult",
+                                  "Neither difficult, nor easy",
+                                  "Somewhat easy",
+                                  "Very easy"))
+
+```
+
+## Main Survey
+
+### Open Ended Responses
+
+The variables maritalStatus, gender, workStatusJanuary, workStatus, and workLocationBaseline have the option for a write-in answer. This was only used in one case, where someone answered “Soltero” for marital status. We will have Duncan review the Spanish translation of never married. 
+
+The variables ethnic origin, occupation, and unemployment compensation have an open-ended text box. Ethnicity is discussed in its own section. Unemployment compensation had some answers that included dollar signs, while others did not. Someone reported 9870$, which seems unlikely. 
+
+Occupations were written in multiple languages, but generally people were reporting job types that were understandable. It will be a challenge to translate all of them for the full survey. 
+
+```{r include=FALSE}
+
+names(df)[grepl("TEXT", names(df))]
+
+df %>% tab(maritalStatus.TEXT)
+df %>% tab(gender.TEXT)
+df %>% tab(workStatusJanuary.TEXT)
+df %>% tab(workStatus.TEXT)
+df %>% tab(workLocationBaseline.TEXT)
+df %>% tab(educationBaseline.TEXT)
+df %>% tab(ethnicOrigin)
+table(df$occupation)
+df %>% tab(unemployCompBaseline)
+```
+
+
+### Ethnic origin
+
+We were not sure how people would report their ethnicity. Most people reported their home country or a broader ethnic group, such as “Ukranian” or “Asian.” Some people responded in Dari or Arabic. Some of the responses in Arabic said, “Arabic”, “white”, “Arab”, or “Muslim.” The responses in Dari said “Hazara” and “Tajik.”
+
+The list of reported ethnicities is shown below. 
+
+```{r}
+df %>% 
+  mutate(ethnicOrigin = fct_infreq(ethnicOrigin) %>% fct_rev()) %>% 
+  ggplot(aes(ethnicOrigin)) +
+  geom_bar() +
+  scale_y_continuous(breaks = seq(0, 12, 1)) +
+  coord_flip()
+```
+
+### Follow-up Contact Information
+
+Of the 28 people that completed the survey, 23 provided a follow-up number.  Fifteen of the numbers were WhatsApp numbers and 8 were SMS numbers. The numbers were provided in different formats. Only three of the numbers had country codes, but all WhatsApp and SMS numbers seem like valid US numbers with ten digits (or ten digits and a “+1”). Two people reported numbers in Persian, but these can be translated with Google Translate. We may want to consider restricting answers to Arabic numerals, but we don’t know if this would encourage more non-response. 
+
+For the five people that did not provide a number, two said they had WhatsApp but then did not provide a number. One gave text consent but then did not provide a text number. We have modified the survey flow so that anyone who does not provide a WhatsApp number will be asked to join the SMS follow-up surveys. 
+
+
+```{r include = FALSE}
+
+df$haveContactNumber <- 0
+df$haveContactNumber[!is.na(df$whatsAppNumber.WhatsApp.number)] <- 1
+df$haveContactNumber[!is.na(df$phoneText.Phone.number)] <- 1
+df %>% filter(consent == "Yes, I agree to participate") %>% tab(haveContactNumber)
+
+# did we get contact information from everyone
+df %>% filter(consent == "Yes, I agree to participate") %>% select(haveContactNumber, whatsAppHave,whatsAppConsent, whatsAppNumber.WhatsApp.number, textConsent, phoneText.Phone.number) %>% print(n=100)
+
+# We have phone numbers for 23/28 people who completed the survey
+df %>% filter(consent == "Yes, I agree to participate", haveContactNumber == 0) %>% 
+      select(haveContactNumber, whatsAppHave,whatsAppConsent, whatsAppNumber.WhatsApp.number, 
+            textConsent, phoneText.Phone.number, surveyMode) %>% print(n=100)
+# For the five that did not provide a number: 2 had WhatsApp, but did not give a number. One gave text consent, but did not give a text number. It could be that
+# people could not figure out their WhatsApp numbers. We will change the survey to ask for text consent and numbers if they do not provide a WhatsApp number. 
+
+
+df %>% filter(!is.na(whatsAppNumber.WhatsApp.number)) %>% tab(whatsAppNumber.WhatsApp.number)
+# 15 WhatsApp numbers provided. Three of them have country codes. All of them seem like US numbers.
+
+df %>% filter(!is.na(phoneText.Phone.number)) %>% tab(phoneText.Phone.number)
+# 8 cell phone numbers provided. All of them appear to be valid US numbers. 
+
+```
+
+### Survey Logic
+
+The survey logic was checked for all questions that had branching logic. It was applied correctly in all cases. Household size was also compared to children in the household and there were no inconsistent reports, even though there is no validation logic to prevent more children being reported than there are household members. 
+
+Currently, someone could skip the birth year question and continue the survey. We may want to consider adding another level of authentication for anyone who does this. 
+
+```{r include = FALSE}
+
+#  check survey logic -----------------------------------------------------
+
+df %>% filter(!is.na(confirm18)) %>% tab(confirm18, birthYear)
+df %>% filter(!is.na(birthYearUnder18)) %>% tab(birthYearUnder18, birthYear)
+
+df %>% filter(!is.na(stateCurrent)) %>% tab(stateCurrent, cityCurrent, zipCurrent, surveyMode)
+df %>% filter(!is.na(cityCurrent)) %>% tab(cityCurrent, zipCurrent)
+
+df %>% filter(!is.na(textConsent)) %>% tab(textConsent, whatsAppNumber.WhatsApp.number)
+df %>% filter(!is.na(phoneText.Phone.number)) %>% tab(phoneText.Phone.number, textConsent)
+
+df %>% filter(!is.na(hoursWorkedJanuary)) %>% tab(hoursWorkedJanuary, workStatusJanuary)
+
+df %>% filter(!is.na(housingPaymentJanuary)) %>% tab(housingPaymentJanuary, housingJanuary)
+
+df %>% filter(!is.na(housingRentJanuary)) %>% tab(housingRentJanuary, housingPaymentJanuary)
+
+df %>% filter(!is.na(foodSecurity1January)) %>% tab(foodSecurity1January, foodSecurity2January_afford)
+df %>% filter(!is.na(foodSecurity1January)) %>% tab(foodSecurity1January, foodSecurity2January_transport)
+df %>% filter(!is.na(foodSecurity1January)) %>% tab(foodSecurity1January, foodSecurity2January_afraid)
+df %>% filter(!is.na(foodSecurity1January)) %>% tab(foodSecurity1January, foodSecurity2January_deliver)
+df %>% filter(!is.na(foodSecurity1January)) %>% tab(foodSecurity1January, foodSecurity2January_stores)
+
+df %>% tab(householdChildren, schoolJanuary, educationBaseline)
+
+df %>% filter(!is.na(hoursWorkedBaseline)) %>% tab(hoursWorkedBaseline, workStatus)
+
+df %>% filter(!is.na(workLocationBaseline)) %>% tab(workLocationBaseline, workStatus)
+
+df %>% filter(!is.na(hoursWorkedBaseline)) %>% tab(hoursWorkedBaseline, workStatus)
+
+df %>% filter(!is.na(unemployCompBaseline)) %>% tab(unemployCompBaseline, unemploymentBeneBaseline)
+
+
+df %>% filter(!is.na(housingPaymentBaseline)) %>% tab(housingPaymentBaseline, housingBaseline)
+
+df %>% filter(!is.na(housingRentBaseline)) %>% tab(housingRentBaseline, housingPaymentBaseline)
+
+df %>% filter(!is.na(foodSecurity1Baseline)) %>% tab(foodSecurity1Baseline, foodSecurity2Baseline_afford)
+df %>% filter(!is.na(foodSecurity1Baseline)) %>% tab(foodSecurity1Baseline, foodSecurity2Baseline_transport)
+df %>% filter(!is.na(foodSecurity1Baseline)) %>% tab(foodSecurity1Baseline, foodSecurity2Baseline_afraid)
+df %>% filter(!is.na(foodSecurity1Baseline)) %>% tab(foodSecurity1Baseline, foodSecurity2Baseline_deliver)
+df %>% filter(!is.na(foodSecurity1Baseline)) %>% tab(foodSecurity1Baseline, foodSecurity2Baseline_stores)
+
+df %>% tab(householdSize, householdChildren)
+
+```
+
+### Years of Education and Level of Education
+
+The years of education obtained and levels of education logically matched. However, there were four non-responses for years of education in Russian for people that reported their level of education. It may be that the Russian translation for years of education is confusing. These two questions may be duplicative, and we may consider dropping one of them. However, we may prefer to have years of education as a continuous variable. 
+
+```{r include = FALSE}
+
+df %>% tab(educationYears, educationLevel)
+# Education years has more blank responses
+df %>% filter(consent == "Yes, I agree to participate") %>% tab(educationYears, educationLevel, Q_Language)
+df %>% filter(consent == "Yes, I agree to participate") %>% tab(Q_Language, educationYears, educationLevel)
+# Russians seem to skip the education years question more frequently
+# The education levels and education years line up well
+
+
+```
+
+
+### Birth Country and Home Country
+
+Most people pick the same country for birth country and home country. Some people now pick the US as the home country. The US was listed as a home country in most languages at least once. One person picked a non-US and non-birth country as their home country.
+
+
+```{r echo= FALSE}
+
+table1 <- df %>% filter(consent == "Yes, I agree to participate") %>% select(bcountry, homeCountry) %>% arrange(bcountry, homeCountry)
+knitr::kable(table1)
+
+```
+
+### Skipped Questions
+
+The table below shows the number of blanks for each question. 
+
+
+```{r echo= FALSE}
+
+colsCountBlanks <- var_info %>% filter(CountBlanks == 1)
+
+df_countBlanks <- df %>% select(colsCountBlanks$varname) %>% filter(consent == "Yes, I agree to participate")
+countNA <- as.data.frame(sapply(df_countBlanks, function(x) sum(is.na(x))))
+
+
+countNA <- countNA %>% rownames_to_column("Variable") %>% rename(`Number of Blanks` = `sapply(df_countBlanks, function(x) sum(is.na(x)))`)
+knitr::kable(countNA)
+
+
+```
