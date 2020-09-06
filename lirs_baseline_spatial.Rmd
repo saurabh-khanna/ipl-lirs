@@ -1,0 +1,141 @@
+---
+title: 'Geographic distribution of baseline survey data'
+author: "Michael Hotard and Saurabh Khanna"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_caption: yes
+    number_sections: no
+    toc: yes
+    toc_depth: 4
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: 4
+fontsize: 12pt
+---
+
+# Spatial plots
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+#knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+```{r}
+# Libraries
+library(tidyverse)
+library(sf)
+
+# Parameters
+df <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
+```
+
+
+```{r}
+# Obtaining state level median stats 
+df_states <-
+  df %>% 
+  mutate(
+    stateCurrent = if_else(stateCurrent == "Refused", NA_character_, stateCurrent),
+    stateCurrent = if_else(stateCurrent == "I do not reside in the United States", NA_character_, stateCurrent)
+  ) %>%
+  group_by(stateCurrent) %>%
+  summarise_if(is.numeric, median, na.rm = TRUE) %>% 
+  mutate_if(is.numeric, round) %>%
+  select(stateCurrent, birthYear, yearArrive, householdSize, householdChildren)
+```
+
+
+## Household size
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = householdSize), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    breaks = seq(0, 10, 2)
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Median household size"
+  )
+```
+
+
+## Children in household
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = householdChildren), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    breaks = seq(0, 5, 1)
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Median children in household"
+  )
+```
+
+
+## Year of arrival
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = yearArrive), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    breaks = seq(2012, 2020, 1)
+  ) +
+  theme_void() +
+  #theme(legend.position = "bottom") +
+  labs(
+    fill = "Median year of arrival"
+  )
+```
+
+
+## Year of birth
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = birthYear), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    breaks = seq(1970, 2020, 5)
+  ) +
+  theme_void() +
+  #theme(legend.position = "bottom") +
+  labs(
+    fill = "Median year of birth"
+  )
+
+```
+
