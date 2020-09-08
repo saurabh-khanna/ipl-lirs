@@ -19,7 +19,7 @@ fontsize: 12pt
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
-#knitr::opts_chunk$set(fig.pos = 'H')
+knitr::opts_chunk$set(fig.pos = 'H')
 ```
 
 ```{r}
@@ -136,6 +136,5 @@ ussf::boundaries(geography = "state") %>%
   labs(
     fill = "Median year of birth"
   )
-
 ```
 
