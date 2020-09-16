@@ -3,13 +3,13 @@ title: 'Geographic distribution of baseline survey data'
 author: "Michael Hotard and Saurabh Khanna"
 date: "`r Sys.Date()`"
 output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: 4
   pdf_document:
     fig_caption: yes
     number_sections: no
-    toc: yes
-    toc_depth: 4
-  html_document:
-    df_print: paged
     toc: yes
     toc_depth: 4
 fontsize: 12pt
@@ -35,15 +35,128 @@ df <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
 ```{r}
 # Obtaining state level median stats 
 df_states <-
-  df %>% 
+  df %>%
+  arrange(stateCurrent) %>%
+  select(stateCurrent, unemploymentBeneBaseline, caresStimulusBaseline, foodSecurity1Baseline, housingRentBaseline, birthYear, yearArrive, householdSize, householdChildren) %>% 
+  left_join(df %>% count(stateCurrent), by = "stateCurrent") %>% 
+  filter(n >= 10) %>%
   mutate(
     stateCurrent = if_else(stateCurrent == "Refused", NA_character_, stateCurrent),
-    stateCurrent = if_else(stateCurrent == "I do not reside in the United States", NA_character_, stateCurrent)
+    stateCurrent = if_else(stateCurrent == "I do not reside in the United States", NA_character_, stateCurrent),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
+    unemploymentBeneBaseline = unemploymentBeneBaseline %>% as.integer(),
+    caresStimulusBaseline = if_else(caresStimulusBaseline == "Yes", "1", caresStimulusBaseline),
+    caresStimulusBaseline = if_else(caresStimulusBaseline == "No", "0", caresStimulusBaseline),
+    caresStimulusBaseline = caresStimulusBaseline %>% as.integer(),
+    foodSecurity1Baseline = if_else(str_detect(foodSecurity1Baseline, "^Enough"), "0", foodSecurity1Baseline),
+    foodSecurity1Baseline = if_else(str_detect(foodSecurity1Baseline, "not enough"), "1", foodSecurity1Baseline),
+    foodSecurity1Baseline = if_else(foodSecurity1Baseline %in% c("0", "1"), foodSecurity1Baseline, NA_character_),
+    foodSecurity1Baseline = foodSecurity1Baseline %>% as.integer(),
+    housingRentBaseline = if_else(housingRentBaseline == "Yes", "1", housingRentBaseline),
+    housingRentBaseline = if_else(housingRentBaseline == "No", "0", housingRentBaseline),
+    housingRentBaseline = if_else(str_detect(housingRentBaseline, "^Payment"), "0", housingRentBaseline),
+    housingRentBaseline = housingRentBaseline %>% as.integer()
   ) %>%
+  drop_na(stateCurrent) %>% 
   group_by(stateCurrent) %>%
-  summarise_if(is.numeric, median, na.rm = TRUE) %>% 
-  mutate_if(is.numeric, round) %>%
-  select(stateCurrent, birthYear, yearArrive, householdSize, householdChildren)
+  summarise_if(is.numeric, mean, na.rm = TRUE) %>% 
+  mutate_at(vars(birthYear, yearArrive, householdSize, householdChildren), ~ round(.))
+```
+
+
+## Unemployment benefits
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = unemploymentBeneBaseline), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = scales::percent
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Receiving unemployment benefits"
+  )
+```
+
+
+## CARES Stimulus
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = caresStimulusBaseline), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = scales::percent,
+    breaks = seq(0.7, 1, 0.15)
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Received CARES Stimulus"
+  )
+```
+
+
+## Food Security
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = foodSecurity1Baseline), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = scales::percent,
+    breaks = seq(0, 1, 0.2)
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Facing food insecurity"
+  )
+```
+
+
+## Housing rent paid on time
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = housingRentBaseline), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = scales::percent,
+    breaks = seq(0.5, 1, 0.25)
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Housing rent paid on time"
+  )
 ```
 
 
@@ -60,7 +173,7 @@ ussf::boundaries(geography = "state") %>%
   geom_sf(aes(fill = householdSize), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    breaks = seq(0, 10, 2)
+    breaks = seq(0, 10, 1)
   ) +
   theme_void() +
   theme(legend.position = "bottom") +
@@ -129,7 +242,7 @@ ussf::boundaries(geography = "state") %>%
   geom_sf(aes(fill = birthYear), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    breaks = seq(1970, 2020, 5)
+    breaks = seq(1970, 2020, 3)
   ) +
   theme_void() +
   #theme(legend.position = "bottom") +
