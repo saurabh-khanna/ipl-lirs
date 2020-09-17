@@ -3,13 +3,13 @@ title: 'Geographic distribution of baseline survey data'
 author: "Michael Hotard and Saurabh Khanna"
 date: "`r Sys.Date()`"
 output:
-  html_document:
-    df_print: paged
-    toc: yes
-    toc_depth: 4
   pdf_document:
     fig_caption: yes
     number_sections: no
+    toc: yes
+    toc_depth: 4
+  html_document:
+    df_print: paged
     toc: yes
     toc_depth: 4
 fontsize: 12pt
@@ -33,7 +33,7 @@ df <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
 
 
 ```{r}
-# Obtaining state level median stats 
+# Obtaining state level mean stats 
 df_states <-
   df %>%
   arrange(stateCurrent) %>%
@@ -65,6 +65,24 @@ df_states <-
 ```
 
 
+## Number of respondents
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df %>% count(stateCurrent),
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = n), size = 0.3) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Number of respondents"
+  )
+```
+
 ## Unemployment benefits
 
 ```{r}
@@ -76,8 +94,7 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = unemploymentBeneBaseline), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+  scale_fill_continuous(
     labels = scales::percent
   ) +
   theme_void() +
@@ -99,8 +116,7 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = caresStimulusBaseline), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+  scale_fill_continuous(
     labels = scales::percent,
     breaks = seq(0.7, 1, 0.15)
   ) +
@@ -123,8 +139,7 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = foodSecurity1Baseline), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+  scale_fill_continuous(
     labels = scales::percent,
     breaks = seq(0, 1, 0.2)
   ) +
@@ -147,8 +162,7 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = housingRentBaseline), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+  scale_fill_continuous(
     labels = scales::percent,
     breaks = seq(0.5, 1, 0.25)
   ) +
@@ -158,53 +172,6 @@ ussf::boundaries(geography = "state") %>%
     fill = "Housing rent paid on time"
   )
 ```
-
-
-## Household size
-
-```{r}
-ussf::boundaries(geography = "state") %>% 
-  select(stateCurrent = NAME) %>% 
-  left_join(
-    df_states,
-    by = "stateCurrent"
-  ) %>% 
-  ggplot() +
-  geom_sf(aes(fill = householdSize), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    breaks = seq(0, 10, 1)
-  ) +
-  theme_void() +
-  theme(legend.position = "bottom") +
-  labs(
-    fill = "Median household size"
-  )
-```
-
-
-## Children in household
-
-```{r}
-ussf::boundaries(geography = "state") %>% 
-  select(stateCurrent = NAME) %>% 
-  left_join(
-    df_states,
-    by = "stateCurrent"
-  ) %>% 
-  ggplot() +
-  geom_sf(aes(fill = householdChildren), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    breaks = seq(0, 5, 1)
-  ) +
-  theme_void() +
-  theme(legend.position = "bottom") +
-  labs(
-    fill = "Median children in household"
-  )
-```
-
 
 ## Year of arrival
 
@@ -217,14 +184,10 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = yearArrive), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    breaks = seq(2012, 2020, 1)
-  ) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  theme(legend.position = "bottom") +
   labs(
-    fill = "Median year of arrival"
+    fill = "Mean year of arrival"
   )
 ```
 
@@ -240,14 +203,54 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = birthYear), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    breaks = seq(1970, 2020, 3)
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Mean year of birth"
+  )
+```
+
+
+## Household size
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = householdSize %>% as_factor()), size = 0.3) +
+  scale_fill_brewer(
+    breaks = seq(0, 10, 1)
   ) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  theme(legend.position = "bottom") +
   labs(
-    fill = "Median year of birth"
+    fill = "Mean household size"
+  )
+```
+
+
+## Children in household
+
+```{r}
+ussf::boundaries(geography = "state") %>% 
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_states,
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = householdChildren %>% as_factor()), size = 0.3) +
+  scale_fill_brewer(
+    breaks = seq(0, 10, 1)
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Mean children in household"
   )
 ```
 
