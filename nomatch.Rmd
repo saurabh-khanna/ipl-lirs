@@ -1,0 +1,112 @@
+---
+title: 'No-match data exploration'
+#author: "Saurabh Khanna"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+```{r}
+# Libraries
+pacman::p_load(tidyverse, readxl, janitor, lubridate)
+
+# Parameters
+# df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
+# df_updated <- read_xlsx(here::here("data", "merge/lirs_postresponses_updated_all_september.xlsx"))
+df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
+# df_smslog <- read_csv(here::here("data", "merge/sms-log-jen-18sep2020.csv"))
+```
+
+
+
+```{r}
+df_nomatch <-
+  df_nomatch %>%
+  mutate(date = as_datetime(date)) %>% 
+  mutate_at(vars(starts_with("n")), parse_number) %>% 
+  arrange(number, desc(date)) %>% 
+  distinct(number, .keep_all = TRUE)
+```
+
+
+### Percentage questions answered
+
+On average, no-match respondents answer around 20% survey questions. There is a considerable number of participants answering less than 10% questions though.
+
+```{r}
+df_nomatch %>% 
+  select(starts_with("q")) %>%
+  na_if("No Data") %>% 
+  mutate(
+    row_nas = rowSums(!is.na(.)) / 20
+  ) %>%
+  ggplot(aes(row_nas)) +
+  geom_histogram(fill = "gray", color = "black", binwidth = 0.05) +
+  geom_vline(aes(xintercept = mean(row_nas, na.rm = TRUE)), linetype = "dashed", color = "blue") +
+  scale_x_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Percentage questions answered",
+    y = "Number of respondents",
+    caption = "Note: Blue dashed line represents the distribution mean"
+  )
+```
+
+
+### No-match respondents anwering more than half questions
+
+Around 20% no-match respondents (31 out of 188) answer more than half the survey questions.
+
+```{r}
+df_nomatch %>% 
+  select(starts_with("q")) %>% 
+  na_if("No Data") %>% 
+  mutate(
+    row_nas = rowSums(!is.na(.)) / 20,
+    answered_more_than_half = (row_nas >= 0.5)
+  ) %>% 
+  count(answered_more_than_half, name  = "count")
+```
+
+
+### Question-wise response rate
+
+The response rate to questions falls as the survey proceeds. Question 4 is unique in a way that around 90% respondents don't answer it.
+
+
+```{r}
+df_nomatch %>% 
+  select(starts_with("q")) %>% 
+  na_if("No Data") %>% 
+  summarise_at(vars(starts_with("q")), ~ mean(!is.na(.))) %>% 
+  pivot_longer(cols = starts_with("q"), names_to = "question", values_to = "answers") %>% 
+  mutate(
+    question = str_replace(question, "_nomatch", ""),
+    question = str_replace(question, "q", "Question "),
+    question = question %>% fct_inorder() %>% fct_rev()
+    ) %>% 
+  ggplot(aes(question, answers)) +
+  geom_col(aes(fill = (question != "Question 4")), show.legend = FALSE) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  coord_flip() +
+  labs(
+    x = "Survey Questions",
+    y = "Percentage respondents answering"
+  )
+```
+
