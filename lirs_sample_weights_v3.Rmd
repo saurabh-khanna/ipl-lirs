@@ -1,0 +1,188 @@
+---
+title: 'LIRS Sample weights'
+author: "Michael Hotard and Saurabh Khanna"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    number_sections: no
+    toc: yes
+    toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = TRUE, fig.retina = 4)
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+
+## Load data
+
+```{r}
+# Libraries
+pacman::p_load(corrplot, caret)
+
+# Population data
+df_population <- 
+  read.xlsx("data/Smartsheet_9.10.xlsx", sep.names = " ") %>% 
+  drop_na(`Qualtrics Survey Status`) %>% 
+  mutate(
+    completed = if_else(
+      `Qualtrics Survey Status` %in% c("Phone completed", "Web completed"), 1, 0
+    )
+  ) %>% 
+  arrange(study_id)
+  
+df_population %>% count(completed, `Qualtrics Survey Status`)
+```
+
+
+```{r}
+df_descriptives1 <- read_csv("IPL_Survey_Data_v2_baseline+pilot.csv")
+df_descriptives2 <- read_csv("Desc_Pilot+Baseline.csv")
+df_descriptives3 <- read_csv("Edu_Pilot+Baseline.csv")
+```
+
+```{r cleanEduation}
+df_descriptives3 <-
+  df_descriptives3 %>%
+  mutate(
+    EducationNum =
+      case_when(
+        EducationLevel == "Unknown" ~ 0,
+        EducationLevel == "NULL" ~ 0,
+        EducationLevel == "NONE" ~ 1,
+        EducationLevel == "Kindergarten" ~ 2,
+        EducationLevel == "Primary" ~ 3,
+        EducationLevel == "Intermediate" ~ 4,
+        EducationLevel == "Secondary" ~ 5,
+        EducationLevel == "Pre-University" ~ 6,
+        EducationLevel == "Technical School" ~ 7,
+        EducationLevel == "Professional" ~ 8,
+        EducationLevel == "University/College" ~ 9,
+        EducationLevel == "Graduate School" ~ 10,
+      )
+  )
+
+# keeping highest level of education
+df_descriptives3 <-
+  df_descriptives3 %>%
+  group_by(ID) %>%
+  arrange(ID, desc(EducationNum)) %>%
+  mutate(maxEduc = max(EducationNum), row_num = row_number()) %>%
+  ungroup() %>%
+  filter(row_num == 1)
+
+df_descriptives3
+```
+
+
+```{r combineData}
+df_descriptives1 <- df_descriptives1 %>% rename(study_ID=ID)
+df_population <- left_join(df_population,df_descriptives1,by=c("study_ID"))
+df_population <- left_join(df_population,df_descriptives2,by=c("study_ID"="ID"))
+df_population <- left_join(df_population,df_descriptives3,by=c("study_ID"="ID"))
+df_population <- df_population %>% clean_names()
+```
+
+
+
+## Creating dataframe for balance checks
+
+```{r varsRenamed}
+df_main <-
+  bind_rows(
+    df_population %>% filter(completed == 1),
+    df_population,
+    .id = "treatment"
+  ) %>%
+  mutate(
+    treatment = parse_number(treatment) - 1
+  )
+
+# check survey and population size
+df_main %>% count(treatment)
+```
+
+
+```{r}
+# for significant ones, exclude NAs and reorder columns
+df_main <- 
+  df_main %>%
+  select(
+    study_id,
+    treatment,
+    gender,
+    arrival_cy,
+    education_level,
+    survey_language,
+    marital_status,
+    state_resettled,
+    country_birth,
+    case_size,
+    case_priority
+  ) %>% 
+  mutate(
+    gender = gender %>% as_factor(),
+    arrival_cy = arrival_cy %>% as_factor()
+  ) %>%
+  dummy_cols(ignore_na = TRUE, remove_selected_columns = TRUE, remove_first_dummy = TRUE) %>% 
+  relocate(study_id, treatment)
+
+df_main %>% summary()
+```
+
+
+```{r}
+# check survey and population size
+df_main %>% count(treatment)
+```
+
+
+```{r dropnas}
+df_main <- df_main %>% drop_na()
+df_main %>% summary()
+```
+
+
+```{r checktreatment}
+# check survey and population size
+df_main %>% count(treatment)
+```
+
+
+```{r}
+df_main %>% glimpse()
+```
+
+
+## Entropy balancing
+
+```{r entropy}
+eb.out <- ebalance(Treatment = df_main$treatment, X = df_main[ , 3:5])
+
+weights_only <- eb.out$w %>% as_tibble()
+
+sample_with_weights <-
+  df_main %>% 
+  filter(treatment == 0) %>% 
+  bind_cols(weights_only) %>% 
+  select(study_id, weight = value, everything())
+
+sample_with_weights %>% glimpse()
+```
+
+
+## Extract sample with weights
+
+```{r}
+sample_with_weights %>% view()
+
+sample_with_weights %>% 
+  write_csv(here::here("sample_with_weights_09.25.2020.csv"))
+
+sample_with_weights %>% 
+  ggplot(aes(weight)) + geom_histogram()
+```
+
+

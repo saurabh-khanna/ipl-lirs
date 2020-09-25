@@ -102,6 +102,8 @@ ussf::boundaries(geography = "state") %>%
   labs(
     fill = "Receiving unemployment benefits"
   )
+
+df_population %>% count(country_birth) %>% arrange(-n)
 ```
 
 
