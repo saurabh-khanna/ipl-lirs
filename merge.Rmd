@@ -1,9 +1,9 @@
 ---
-title: 'Data merging'
-#author: "Saurabh Khanna"
+title: 'Survey Rates - September 2020'
+author: "Saurabh Khanna"
 date: "`r Sys.Date()`"
 output:
-  html_document:
+  pdf_document:
     toc: yes
     toc_depth: 3
 ---
@@ -14,41 +14,269 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina
 knitr::opts_chunk$set(fig.pos = 'H')
 ```
 
+
+\newpage
+
+# Survey rates
+
 ```{r}
 # Libraries
-pacman::p_load(tidyverse, readxl, janitor, lubridate)
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont)
 
 # Parameters
-df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
-df_updated <- read_xlsx(here::here("data", "merge/lirs_postresponses_updated_all_september.xlsx"))
-df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
-df_whatsapp <- read_xlsx(here::here("data", "whatsapp_cleaned.xlsx"))
-df_sms <- read_xlsx(here::here("data", "sms_cleaned.xlsx"))
+df_baseline<- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
 
-# df_smslog <- read_csv(here::here("data", "merge/sms-log-jen-18sep2020.csv"))
+df_updated <- 
+  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all_september.xlsx")) %>% 
+  mutate(
+    number_from = parse_number(number_from) %>% as.character(),
+    date = as_datetime(date)
+  ) %>% 
+  arrange(number_from, desc(date)) %>% 
+  distinct(number_from, .keep_all = TRUE) %>% 
+  drop_na(number_from)
+  
+
+df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
+df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
+
+df_twilio <- 
+  bind_rows(
+    df_whatsapp_twilio %>% select(study_ID, number_from = whatsAppNumber_final, lang = languageFollowUps), 
+    df_sms_twilio %>% select(study_ID, number_from = smsNumber_final, lang = languageFollowUps),
+    .id = "medium"
+  ) %>% 
+  mutate(
+    medium = recode(medium, `1` = "WhatsApp", `2` = "SMS", .default = NA_character_),
+  ) %>% 
+  distinct(study_ID, .keep_all = TRUE) %>% 
+  distinct(number_from, .keep_all = TRUE)
+
+# df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
+failed_nos <- 
+  read_csv(here::here("data", "merge/failed_messages.csv")) %>% 
+  mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
+
+rm(df_whatsapp_twilio, df_sms_twilio)
 ```
 
 
 ```{r}
-df_baseline %>%
-  select(contains("phone")) %>%
-  select(sms_unclean = phoneText.Phone.number) %>% 
-  drop_na(sms_unclean) %>% 
-  anti_join(
-    df_sms %>% select(sms_unclean = phoneText.Phone.numberOriginal, sms_clean = phoneText.Phone.number_clean),
-    by = "sms_unclean"
-  )
-
-df_baseline %>%
-  select(contains("whatsapp")) %>%
-  select(whatsapp_unclean = whatsAppNumber.WhatsApp.number) %>% 
-  drop_na(whatsapp_unclean) %>% 
-  anti_join(
-    df_whatsapp %>% select(whatsapp_unclean = whatsAppNumberOriginal, whatsapp_clean = whatsAppNumber_clean),
-    by = "whatsapp_unclean"
-  )
+df_main <-
+  df_baseline %>% 
+  inner_join(df_twilio, ., by = "study_ID") %>%
+  inner_join(df_updated, by = "number_from") %>% 
+  filter(!(number_from %in% failed_nos))
 ```
 
 
+## Overall
 
+```{r, fig.asp = 1}
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = everything(), names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  knitr::kable()
+
+
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = everything(), names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  scale_y_continuous(
+    # breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+```
+
+\newpage
+
+## By medium
+
+```{r, fig.asp = 0.8}
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(medium) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -medium, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  knitr::kable()
+
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(medium) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -medium, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  facet_wrap(vars(medium)) +
+  scale_y_continuous(
+    # breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  hrbrthemes::theme_ipsum() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+```
+
+\newpage
+
+## By language
+
+```{r, fig.asp =  1.5}
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(lang) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
+  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
+  pivot_longer(cols = -lang, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  knitr::kable()
+
+
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(lang) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
+  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
+  pivot_longer(cols = -lang, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  facet_wrap(vars(lang)) +
+  scale_y_continuous(
+    # breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  hrbrthemes::theme_ipsum() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+```
+
+\newpage
+
+## By medium and language
+
+```{r, fig.asp = 3}
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(medium, lang) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
+  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
+  pivot_longer(cols = -c(lang, medium), names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  knitr::kable()
+
+df_main %>% 
+  transmute(
+    medium,
+    lang,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(medium, lang) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
+  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
+  pivot_longer(cols = -c(lang, medium), names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  facet_grid(rows = vars(lang), cols = vars(medium)) +
+  scale_y_continuous(
+    # breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  hrbrthemes::theme_ipsum() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+```
 

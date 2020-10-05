@@ -1,0 +1,45 @@
+## ---------------------------------------------------------------------------------------------------------------------------
+knitr::purl("merge.Rmd")
+
+
+## ----setup, include=FALSE---------------------------------------------------------------------------------------------------
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(fig.pos = 'H')
+
+
+## ---------------------------------------------------------------------------------------------------------------------------
+# Libraries
+pacman::p_load(tidyverse, readxl, janitor, lubridate)
+
+# Parameters
+df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
+df_updated <- read_xlsx(here::here("data", "merge/lirs_postresponses_updated_all_september.xlsx"))
+df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
+df_whatsapp <- read_xlsx(here::here("data", "whatsapp_cleaned.xlsx"))
+df_sms <- read_xlsx(here::here("data", "sms_cleaned.xlsx"))
+
+df_whatsapp_twilio <- read_xlsx(here::here("data", "whatsapp_twilio.xlsx"))
+df_sms_twilio <- read_xlsx(here::here("data", "sms_twilio.xlsx"))
+
+# df_smslog <- read_csv(here::here("data", "merge/sms-log-jen-18sep2020.csv"))
+
+
+## ---------------------------------------------------------------------------------------------------------------------------
+df_baseline %>%
+  select(contains("phone")) %>%
+  select(sms_unclean = phoneText.Phone.number) %>% 
+  drop_na(sms_unclean) %>% 
+  anti_join(
+    df_sms %>% select(sms_unclean = phoneText.Phone.numberOriginal, sms_clean = phoneText.Phone.number_clean),
+    by = "sms_unclean"
+  )
+
+df_baseline %>%
+  select(contains("whatsapp")) %>%
+  select(whatsapp_unclean = whatsAppNumber.WhatsApp.number) %>% 
+  drop_na(whatsapp_unclean) %>% 
+  anti_join(
+    df_whatsapp %>% select(whatsapp_unclean = whatsAppNumberOriginal, whatsapp_clean = whatsAppNumber_clean),
+    by = "whatsapp_unclean"
+  )
+

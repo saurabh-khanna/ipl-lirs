@@ -28,7 +28,10 @@ library(tidyverse)
 library(sf)
 
 # Parameters
-df <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
+df <- read_csv(here::here("data", "Rapid_response_baseline_cleaned.csv"))
+df_weights <- read_csv(here::here("data", "weights.csv"))
+
+df <- left_join(df, df_weights, by = "study_ID")
 ```
 
 
@@ -37,7 +40,7 @@ df <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
 df_states <-
   df %>%
   arrange(stateCurrent) %>%
-  select(stateCurrent, unemploymentBeneBaseline, caresStimulusBaseline, foodSecurity1Baseline, housingRentBaseline, birthYear, yearArrive, householdSize, householdChildren) %>% 
+  select(stateCurrent, unemploymentBeneBaseline, caresStimulusBaseline, foodSecurity1Baseline, housingRentBaseline, birthYear, yearArrive, householdSize, householdChildren, weight) %>% 
   left_join(df %>% count(stateCurrent), by = "stateCurrent") %>% 
   filter(n >= 10) %>%
   mutate(
@@ -81,6 +84,8 @@ ussf::boundaries(geography = "state") %>%
   labs(
     fill = "Number of respondents"
   )
+
+ggsave("spatial_plots/figure_1.png")
 ```
 
 ## Unemployment benefits
@@ -93,7 +98,7 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = unemploymentBeneBaseline), size = 0.3) +
+  geom_sf(aes(fill = unemploymentBeneBaseline, weight = weight), size = 0.3) +
   scale_fill_continuous(
     labels = scales::percent
   ) +
@@ -103,7 +108,7 @@ ussf::boundaries(geography = "state") %>%
     fill = "Receiving unemployment benefits"
   )
 
-df_population %>% count(country_birth) %>% arrange(-n)
+ggsave("spatial_plots/figure_2.png")
 ```
 
 
@@ -117,16 +122,18 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = caresStimulusBaseline), size = 0.3) +
+  geom_sf(aes(fill = caresStimulusBaseline, weight = weight), size = 0.3) +
   scale_fill_continuous(
     labels = scales::percent,
-    breaks = seq(0.7, 1, 0.15)
+    #breaks = seq(0.7, 1, 0.15)
   ) +
   theme_void() +
-  theme(legend.position = "bottom") +
+  #theme(legend.position = "bottom") +
   labs(
     fill = "Received CARES Stimulus"
   )
+
+ggsave("spatial_plots/figure_3.png")
 ```
 
 
@@ -140,16 +147,18 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = foodSecurity1Baseline), size = 0.3) +
+  geom_sf(aes(fill = foodSecurity1Baseline, weight = weight), size = 0.3) +
   scale_fill_continuous(
     labels = scales::percent,
-    breaks = seq(0, 1, 0.2)
+  #  breaks = seq(0, 1, 0.2)
   ) +
   theme_void() +
-  theme(legend.position = "bottom") +
+  #theme(legend.position = "bottom") +
   labs(
     fill = "Facing food insecurity"
   )
+
+ggsave("spatial_plots/figure_4.png")
 ```
 
 
@@ -163,16 +172,17 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = housingRentBaseline), size = 0.3) +
+  geom_sf(aes(fill = housingRentBaseline, weight = weight), size = 0.3) +
   scale_fill_continuous(
-    labels = scales::percent,
-    breaks = seq(0.5, 1, 0.25)
+    labels = scales::percent
   ) +
   theme_void() +
-  theme(legend.position = "bottom") +
+  #theme(legend.position = "bottom") +
   labs(
     fill = "Housing rent paid on time"
   )
+
+ggsave("spatial_plots/figure_5.png")
 ```
 
 ## Year of arrival
@@ -185,12 +195,14 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = yearArrive), size = 0.3) +
+  geom_sf(aes(fill = yearArrive, weight = weight), size = 0.3) +
   theme_void() +
-  theme(legend.position = "bottom") +
+  #theme(legend.position = "bottom") +
   labs(
     fill = "Mean year of arrival"
   )
+
+ggsave("spatial_plots/figure_6.png")
 ```
 
 
@@ -204,12 +216,14 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = birthYear), size = 0.3) +
+  geom_sf(aes(fill = birthYear, weight = weight), size = 0.3) +
   theme_void() +
-  theme(legend.position = "bottom") +
+  #theme(legend.position = "bottom") +
   labs(
     fill = "Mean year of birth"
   )
+
+ggsave("spatial_plots/figure_7.png")
 ```
 
 
@@ -223,15 +237,17 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = householdSize %>% as_factor()), size = 0.3) +
+  geom_sf(aes(fill = householdSize %>% as_factor(), weight = weight), size = 0.3) +
   scale_fill_brewer(
-    breaks = seq(0, 10, 1)
+  #  breaks = seq(0, 10, 1)
   ) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(
     fill = "Mean household size"
   )
+
+ggsave("spatial_plots/figure_8.png")
 ```
 
 
@@ -245,14 +261,16 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = householdChildren %>% as_factor()), size = 0.3) +
+  geom_sf(aes(fill = householdChildren %>% as_factor(), weight = weight), size = 0.3) +
   scale_fill_brewer(
-    breaks = seq(0, 10, 1)
+  #  breaks = seq(0, 10, 1)
   ) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(
     fill = "Mean children in household"
   )
+
+ggsave("spatial_plots/figure_9.png")
 ```
 

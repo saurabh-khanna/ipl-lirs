@@ -20,18 +20,18 @@ knitr::opts_chunk$set(fig.pos = 'H')
 
 ```{r}
 # Libraries
-pacman::p_load(corrplot, caret)
+pacman::p_load(tidyverse, ebal, janitor, openxlsx, fastDummies)
 
 # Population data
 df_population <- 
-  read.xlsx("data/Smartsheet_9.10.xlsx", sep.names = " ") %>% 
+  read.xlsx("Smartsheet_9.10.xlsx", sep.names = " ") %>% 
   drop_na(`Qualtrics Survey Status`) %>% 
   mutate(
     completed = if_else(
       `Qualtrics Survey Status` %in% c("Phone completed", "Web completed"), 1, 0
     )
   ) %>% 
-  arrange(study_id)
+  arrange(study_ID)
   
 df_population %>% count(completed, `Qualtrics Survey Status`)
 ```
@@ -73,7 +73,7 @@ df_descriptives3 <-
   ungroup() %>%
   filter(row_num == 1)
 
-df_descriptives3
+# df_descriptives3
 ```
 
 
@@ -82,7 +82,6 @@ df_descriptives1 <- df_descriptives1 %>% rename(study_ID=ID)
 df_population <- left_join(df_population,df_descriptives1,by=c("study_ID"))
 df_population <- left_join(df_population,df_descriptives2,by=c("study_ID"="ID"))
 df_population <- left_join(df_population,df_descriptives3,by=c("study_ID"="ID"))
-df_population <- df_population %>% clean_names()
 ```
 
 
@@ -90,6 +89,8 @@ df_population <- df_population %>% clean_names()
 ## Creating dataframe for balance checks
 
 ```{r varsRenamed}
+df_population <- df_population %>% clean_names()
+
 df_main <-
   bind_rows(
     df_population %>% filter(completed == 1),
@@ -108,28 +109,25 @@ df_main %>% count(treatment)
 ```{r}
 # for significant ones, exclude NAs and reorder columns
 df_main <- 
-  df_main %>%
-  select(
+  df_main %>% 
+  transmute(
     study_id,
     treatment,
-    gender,
-    arrival_cy,
-    education_level,
-    survey_language,
-    marital_status,
-    state_resettled,
-    country_birth,
+    female = recode(gender, "M" = "0", "F" = "1", .default = NA_character_) %>% as.character %>% parse_integer(),
     case_size,
-    case_priority
-  ) %>% 
-  mutate(
-    gender = gender %>% as_factor(),
-    arrival_cy = arrival_cy %>% as_factor()
+    # lumping factor levels below
+    arrival_cy = arrival_cy %>% as_factor() %>% fct_lump_n(5),
+    education_level = education_level %>% as_factor() %>% fct_lump_n(5),
+    country_birth = country_birth %>% as_factor() %>% fct_lump_n(5),
+    state_resettled = state_resettled %>% as_factor() %>% fct_lump_n(5),
+    survey_language = survey_language %>% as_factor() %>% fct_lump_n(5),
+    marital_status = marital_status %>% as_factor() %>% fct_lump_n(3),
+    case_priority = case_priority %>% as_factor() %>% fct_lump_n(5)
   ) %>%
   dummy_cols(ignore_na = TRUE, remove_selected_columns = TRUE, remove_first_dummy = TRUE) %>% 
   relocate(study_id, treatment)
 
-df_main %>% summary()
+df_main %>% glimpse()
 ```
 
 
@@ -159,7 +157,7 @@ df_main %>% glimpse()
 ## Entropy balancing
 
 ```{r entropy}
-eb.out <- ebalance(Treatment = df_main$treatment, X = df_main[ , 3:5])
+eb.out <- ebalance(Treatment = df_main$treatment, X = df_main[ , 3:100])
 
 weights_only <- eb.out$w %>% as_tibble()
 
@@ -170,6 +168,10 @@ sample_with_weights <-
   select(study_id, weight = value, everything())
 
 sample_with_weights %>% glimpse()
+
+sample_with_weights %>% 
+  ggplot(aes(weight)) + 
+  geom_histogram()
 ```
 
 
@@ -179,10 +181,7 @@ sample_with_weights %>% glimpse()
 sample_with_weights %>% view()
 
 sample_with_weights %>% 
-  write_csv(here::here("sample_with_weights_09.25.2020.csv"))
-
-sample_with_weights %>% 
-  ggplot(aes(weight)) + geom_histogram()
+  write_csv(here::here("sample_with_weights_09.28.2020.csv"))
 ```
 
 
