@@ -79,6 +79,7 @@ ussf::boundaries(geography = "state") %>%
   ) %>% 
   ggplot() +
   geom_sf(aes(fill = n), size = 0.3) +
+  scale_fill_continuous(high = "#132B43", low = "#56B1F7") +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(
@@ -98,8 +99,9 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = unemploymentBeneBaseline, weight = weight), size = 0.3) +
+  geom_sf(aes(fill = unemploymentBeneBaseline), size = 0.3) +
   scale_fill_continuous(
+    high = "#132B43", low = "#56B1F7",
     labels = scales::percent
   ) +
   theme_void() +
@@ -122,13 +124,14 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = caresStimulusBaseline, weight = weight), size = 0.3) +
+  geom_sf(aes(fill = caresStimulusBaseline), size = 0.3) +
   scale_fill_continuous(
+    high = "#132B43", low = "#56B1F7",
     labels = scales::percent,
-    #breaks = seq(0.7, 1, 0.15)
+    breaks = seq(0.7, 1, 0.15)
   ) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  theme(legend.position = "bottom") +
   labs(
     fill = "Received CARES Stimulus"
   )
@@ -147,13 +150,14 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = foodSecurity1Baseline, weight = weight), size = 0.3) +
+  geom_sf(aes(fill = foodSecurity1Baseline), size = 0.3) +
   scale_fill_continuous(
+    high = "#132B43", low = "#56B1F7",
     labels = scales::percent,
-  #  breaks = seq(0, 1, 0.2)
+    breaks = seq(0, 1, 0.2)
   ) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  theme(legend.position = "bottom") +
   labs(
     fill = "Facing food insecurity"
   )
@@ -172,12 +176,14 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = housingRentBaseline, weight = weight), size = 0.3) +
+  geom_sf(aes(fill = housingRentBaseline), size = 0.3) +
   scale_fill_continuous(
-    labels = scales::percent
+    high = "#132B43", low = "#56B1F7",
+    labels = scales::percent,
+    breaks = seq(0, 1, 0.1)
   ) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  theme(legend.position = "bottom") +
   labs(
     fill = "Housing rent paid on time"
   )
@@ -195,9 +201,10 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = yearArrive, weight = weight), size = 0.3) +
+  geom_sf(aes(fill = factor(yearArrive)), size = 0.3) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  scale_fill_brewer(na.value = "#757D75", breaks = seq(2010, 2020, 1)) +
+  theme(legend.position = "bottom") +
   labs(
     fill = "Mean year of arrival"
   )
@@ -216,9 +223,10 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = birthYear, weight = weight), size = 0.3) +
+  geom_sf(aes(fill = as_factor(birthYear)), size = 0.3) +
+  scale_fill_brewer(na.value = "#757D75", breaks = seq(1960, 1985, 1)) +
   theme_void() +
-  #theme(legend.position = "bottom") +
+  theme(legend.position = "bottom") +
   labs(
     fill = "Mean year of birth"
   )
@@ -237,10 +245,8 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = householdSize %>% as_factor(), weight = weight), size = 0.3) +
-  scale_fill_brewer(
-  #  breaks = seq(0, 10, 1)
-  ) +
+  geom_sf(aes(fill = householdSize %>% as_factor()), size = 0.3) +
+  scale_fill_brewer(na.value = "#757D75", breaks = seq(0, 10, 1)) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(
@@ -261,10 +267,8 @@ ussf::boundaries(geography = "state") %>%
     by = "stateCurrent"
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = householdChildren %>% as_factor(), weight = weight), size = 0.3) +
-  scale_fill_brewer(
-  #  breaks = seq(0, 10, 1)
-  ) +
+  geom_sf(aes(fill = householdChildren %>% as_factor()), size = 0.3) +
+  scale_fill_brewer(na.value = "#757D75", breaks = seq(0, 5, 1)) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(

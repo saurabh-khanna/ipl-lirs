@@ -22,9 +22,9 @@ knitr::opts_chunk$set(fig.pos = 'H')
 ```{r}
 # Libraries
 pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont)
-
+extrafont::loadfonts()
 # Parameters
-df_baseline<- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
+df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
 
 df_updated <- 
   read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all_september.xlsx")) %>% 
@@ -87,10 +87,24 @@ df_main %>%
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
-  pivot_longer(cols = everything(), names_to = "name", values_to = "value") %>% 
-  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  pivot_longer(cols = everything(), names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      transmute(
+        medium,
+        lang,
+        survey_started = if_else(q1_response != "No Data", 1, 0),
+        survey_completed = if_else(q18_response != "No Data", 1, 0)
+      ) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = everything(), names_to = "name", values_to = "count"),
+    by = "name"
+  ) %>% 
   knitr::kable()
-
 
 df_main %>% 
   transmute(
@@ -130,15 +144,32 @@ df_main %>%
     lang,
     survey_started = if_else(q1_response != "No Data", 1, 0),
     survey_completed = if_else(q18_response != "No Data", 1, 0)
-  ) %>%
+  ) %>% 
   group_by(medium) %>% 
   summarize(
     `Survey started` = mean(survey_started, na.rm = TRUE),
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
-  pivot_longer(cols = -medium, names_to = "name", values_to = "value") %>% 
-  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  pivot_longer(cols = -medium, names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      transmute(
+        medium,
+        lang,
+        survey_started = if_else(q1_response != "No Data", 1, 0),
+        survey_completed = if_else(q18_response != "No Data", 1, 0)
+      ) %>% 
+      group_by(medium) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -medium, names_to = "name", values_to = "count"),
+    by = c("medium", "name")
+  ) %>% 
+  arrange(medium) %>% 
   knitr::kable()
 
 df_main %>% 
@@ -182,16 +213,34 @@ df_main %>%
     lang,
     survey_started = if_else(q1_response != "No Data", 1, 0),
     survey_completed = if_else(q18_response != "No Data", 1, 0)
-  ) %>%
+  ) %>% 
   group_by(lang) %>% 
   summarize(
     `Survey started` = mean(survey_started, na.rm = TRUE),
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
-  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
-  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
-  pivot_longer(cols = -lang, names_to = "name", values_to = "value") %>% 
-  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -lang, names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      transmute(
+        medium,
+        lang,
+        survey_started = if_else(q1_response != "No Data", 1, 0),
+        survey_completed = if_else(q18_response != "No Data", 1, 0)
+      ) %>% 
+      group_by(lang) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -lang, names_to = "name", values_to = "count"),
+    by = c("lang", "name")
+  ) %>% 
+  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>%
+  drop_na(lang) %>% 
+  arrange(lang) %>% 
   knitr::kable()
 
 
@@ -237,16 +286,34 @@ df_main %>%
     lang,
     survey_started = if_else(q1_response != "No Data", 1, 0),
     survey_completed = if_else(q18_response != "No Data", 1, 0)
-  ) %>%
+  ) %>% 
   group_by(medium, lang) %>% 
   summarize(
     `Survey started` = mean(survey_started, na.rm = TRUE),
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
-  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
-  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
-  pivot_longer(cols = -c(lang, medium), names_to = "name", values_to = "value") %>% 
-  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -c(medium, lang), names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      transmute(
+        medium,
+        lang,
+        survey_started = if_else(q1_response != "No Data", 1, 0),
+        survey_completed = if_else(q18_response != "No Data", 1, 0)
+      ) %>% 
+      group_by(medium, lang) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -c(medium, lang), names_to = "name", values_to = "count"),
+    by = c("medium", "lang", "name")
+  ) %>% 
+  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>%
+  drop_na(lang) %>% 
+  arrange(medium, lang) %>% 
   knitr::kable()
 
 df_main %>% 
