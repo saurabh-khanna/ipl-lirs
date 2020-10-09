@@ -6,6 +6,7 @@ output:
   pdf_document:
     toc: yes
     toc_depth: 3
+    number_sections: yes
 ---
 
 
@@ -68,7 +69,24 @@ df_main <-
   df_baseline %>% 
   inner_join(df_twilio, ., by = "study_ID") %>%
   inner_join(df_updated, by = "number_from") %>% 
-  filter(!(number_from %in% failed_nos))
+  filter(!(number_from %in% failed_nos)) %>% 
+  mutate(
+    lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
+    lang_match = 
+      case_when(
+        lang == "Arabic" & Arabic %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Dari/Farsi" & Farsi %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Dari/Farsi" & Dari %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "English" & English %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Farsi" & Farsi %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Farsi" & Dari %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "French" & French %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Russian" & Russian %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Spanish" & Spanish %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Swahili" & Swahili %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        TRUE ~ "No match"
+      )
+  )
 ```
 
 
@@ -238,7 +256,6 @@ df_main %>%
       pivot_longer(cols = -lang, names_to = "name", values_to = "count"),
     by = c("lang", "name")
   ) %>% 
-  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>%
   drop_na(lang) %>% 
   arrange(lang) %>% 
   knitr::kable()
@@ -257,7 +274,7 @@ df_main %>%
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
-  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
+  drop_na(lang) %>% 
   pivot_longer(cols = -lang, names_to = "name", values_to = "value") %>% 
   mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
   ggplot(aes(name, value)) +
@@ -310,8 +327,7 @@ df_main %>%
       ) %>% 
       pivot_longer(cols = -c(medium, lang), names_to = "name", values_to = "count"),
     by = c("medium", "lang", "name")
-  ) %>% 
-  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>%
+  ) %>%
   drop_na(lang) %>% 
   arrange(medium, lang) %>% 
   knitr::kable()
@@ -329,12 +345,153 @@ df_main %>%
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
-  filter(!(lang %in% c("Don't know", "Refused", NA_character_))) %>% 
+  drop_na(lang) %>% 
   pivot_longer(cols = -c(lang, medium), names_to = "name", values_to = "value") %>% 
   mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
   ggplot(aes(name, value)) +
   geom_col(color = "black") +
   facet_grid(rows = vars(lang), cols = vars(medium)) +
+  scale_y_continuous(
+    # breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  hrbrthemes::theme_ipsum() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+```
+
+\newpage
+
+## By language proficiency
+
+`lang_match` highlights if the respondent was proficient in the followup survey language.
+
+```{r, fig.asp=0.8}
+df_main %>% 
+  transmute(
+    lang_match,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>% 
+  group_by(lang_match) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -lang_match, names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      transmute(
+        lang_match,
+        survey_started = if_else(q1_response != "No Data", 1, 0),
+        survey_completed = if_else(q18_response != "No Data", 1, 0)
+      ) %>% 
+      group_by(lang_match) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -lang_match, names_to = "name", values_to = "count"),
+    by = c("lang_match", "name")
+  ) %>% 
+  arrange(lang_match) %>% 
+  knitr::kable()
+
+df_main %>% 
+  transmute(
+    lang_match,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(lang_match) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -lang_match, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  facet_wrap(vars(lang_match)) +
+  scale_y_continuous(
+    # breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  hrbrthemes::theme_ipsum() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+
+```
+
+
+\newpage
+
+## By medium and language proficiency
+
+```{r, fig.asp = 1}
+df_main %>% 
+  transmute(
+    medium,
+    lang_match,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>% 
+  group_by(medium, lang_match) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -c(medium, lang_match), names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      transmute(
+        medium,
+        lang_match,
+        survey_started = if_else(q1_response != "No Data", 1, 0),
+        survey_completed = if_else(q18_response != "No Data", 1, 0)
+      ) %>% 
+      group_by(medium, lang_match) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -c(medium, lang_match), names_to = "name", values_to = "count"),
+    by = c("medium", "lang_match", "name")
+  ) %>%
+  drop_na(lang_match) %>% 
+  arrange(medium, lang_match) %>% 
+  knitr::kable()
+
+df_main %>% 
+  transmute(
+    medium,
+    lang_match,
+    survey_started = if_else(q1_response != "No Data", 1, 0),
+    survey_completed = if_else(q18_response != "No Data", 1, 0)
+  ) %>%
+  group_by(medium, lang_match) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>%
+  drop_na(lang_match) %>% 
+  pivot_longer(cols = -c(lang_match, medium), names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  facet_grid(rows = vars(lang_match), cols = vars(medium)) +
   scale_y_continuous(
     # breaks = scales::breaks_width(0.2),
     labels = scales::percent_format(accuracy = 1)
