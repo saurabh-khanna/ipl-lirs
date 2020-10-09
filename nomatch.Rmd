@@ -1,6 +1,6 @@
 ---
 title: 'No-match data exploration'
-#author: "Saurabh Khanna"
+author: "Saurabh Khanna"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -16,15 +16,34 @@ knitr::opts_chunk$set(fig.pos = 'H')
 
 ```{r}
 # Libraries
-pacman::p_load(tidyverse, readxl, janitor, lubridate)
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont)
 
 # Parameters
-# df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_20200904.csv"))
-# df_updated <- read_xlsx(here::here("data", "merge/lirs_postresponses_updated_all_september.xlsx"))
 df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
-# df_smslog <- read_csv(here::here("data", "merge/sms-log-jen-18sep2020.csv"))
-```
+df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
+df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
+df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
 
+df_twilio <- 
+  bind_rows(
+    df_whatsapp_twilio %>% select(study_ID, number = whatsAppNumber_final, lang = languageFollowUps), 
+    df_sms_twilio %>% select(study_ID, number = smsNumber_final, lang = languageFollowUps),
+    .id = "medium"
+  ) %>% 
+  mutate(
+    medium = recode(medium, `1` = "WhatsApp", `2` = "SMS", .default = NA_character_),
+  ) %>% 
+  distinct(study_ID, .keep_all = TRUE) %>% 
+  distinct(number, .keep_all = TRUE)
+
+failed_nos <- 
+  read_csv(here::here("data", "merge/failed_messages.csv")) %>% 
+  mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
+
+rm(df_whatsapp_twilio, df_sms_twilio)
+```
 
 
 ```{r}
@@ -33,11 +52,34 @@ df_nomatch <-
   mutate(date = as_datetime(date)) %>% 
   mutate_at(vars(starts_with("n")), parse_number) %>% 
   arrange(number, desc(date)) %>% 
-  distinct(number, .keep_all = TRUE)
+  distinct(number, .keep_all = TRUE) %>% 
+  mutate(number = as.character(number)) %>% 
+  left_join(df_twilio, by = "number") %>% 
+  left_join(df_baseline %>% select(-starts_with("q")), by = "study_ID") %>% 
+  filter(!(number %in% failed_nos)) %>% 
+  mutate(
+    lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
+    lang_match = 
+      case_when(
+        lang == "Arabic" & Arabic %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Dari/Farsi" & Farsi %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Dari/Farsi" & Dari %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "English" & English %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Farsi" & Farsi %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Farsi" & Dari %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "French" & French %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Russian" & Russian %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Spanish" & Spanish %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Swahili" & Swahili %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        TRUE ~ "No match"
+      )
+  ) 
 ```
 
 
-### Percentage questions answered
+## Percentage questions answered
+
+### Overall
 
 On average, no-match respondents answer around 20% survey questions. There is a considerable number of participants answering less than 10% questions though.
 
@@ -64,9 +106,35 @@ df_nomatch %>%
 ```
 
 
-### No-match respondents anwering more than half questions
+### By language proficiency
 
-Around 20% no-match respondents (31 out of 188) answer more than half the survey questions.
+`match` highlights if the respondent was proficient in the followup survey language.
+
+```{r}
+df_nomatch %>% 
+  select(starts_with("q"), lang_match) %>%
+  na_if("No Data") %>% 
+  mutate(
+    row_nas = (rowSums(!is.na(.)) - 1)  / 20
+  ) %>%
+  ggplot(aes(row_nas)) +
+  geom_histogram(fill = "gray", color = "black", binwidth = 0.05) +
+  scale_x_continuous(
+    breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  facet_wrap(vars(lang_match)) +
+  theme_bw() +
+  labs(
+    x = "Percentage questions answered",
+    y = "Number of respondents"
+  )
+```
+
+
+## No-match respondents anwering more than half questions
+
+Around 20% no-match respondents (31 out of 188) answer more than half the survey questions. 
 
 ```{r}
 df_nomatch %>% 
@@ -80,10 +148,25 @@ df_nomatch %>%
 ```
 
 
-### Question-wise response rate
+This rate is surprisingly higher among respondents without a language match.
 
-The response rate to questions falls as the survey proceeds. Question 4 is unique in a way that around 90% respondents don't answer it.
+```{r}
+df_nomatch %>% 
+  select(starts_with("q"), lang_match) %>% 
+  na_if("No Data") %>% 
+  mutate(
+    row_nas = (rowSums(!is.na(.)) - 1)  / 20,
+    answered_more_than_half = (row_nas >= 0.5)
+  ) %>% 
+  count(lang_match, answered_more_than_half, name  = "count")
+```
 
+
+## Question-wise response rate
+
+### Overall
+
+The response rate to questions falls as the survey proceeds.
 
 ```{r}
 df_nomatch %>% 
@@ -97,11 +180,44 @@ df_nomatch %>%
     question = question %>% fct_inorder() %>% fct_rev()
     ) %>% 
   ggplot(aes(question, answers)) +
-  geom_col(aes(fill = (question != "Question 4")), show.legend = FALSE) +
+  geom_col(show.legend = FALSE) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
     labels = scales::percent_format(accuracy = 1)
   ) +
+  theme_bw() +
+  coord_flip() +
+  labs(
+    x = "Survey Questions",
+    y = "Percentage respondents answering"
+  )
+```
+
+### By language proficiency
+
+The response rate falls more sharply for those with language matched after the first question. This could explain why they have lower percentage answering less than half the questions. 
+
+The drop is relatively smoother for those with language mot matched.
+
+```{r}
+df_nomatch %>% 
+  select(starts_with("q"), lang_match) %>% 
+  na_if("No Data") %>% 
+  group_by(lang_match) %>% 
+  summarise_at(vars(starts_with("q")), ~ mean(!is.na(.))) %>% 
+  pivot_longer(cols = starts_with("q"), names_to = "question", values_to = "answers") %>% 
+  mutate(
+    question = str_replace(question, "_nomatch", ""),
+    question = str_replace(question, "q", "Question "),
+    question = question %>% fct_inorder() %>% fct_rev()
+    ) %>% 
+  ggplot(aes(question, answers)) +
+  geom_col(show.legend = FALSE) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  facet_wrap(vars(lang_match)) +
   theme_bw() +
   coord_flip() +
   labs(
