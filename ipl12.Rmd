@@ -1,0 +1,248 @@
+---
+title: "Refugee Integration Paper Descriptives"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+
+```{r}
+# Libraries
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, hrbrthemes, sf)
+extrafont::loadfonts()
+
+# Parameters
+df_baseline <- 
+  read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv")) %>%
+  inner_join(read_csv(here::here("data", "weights.csv")), by = "study_ID")
+```
+
+
+```{r}
+# extracting data for dlaitin on box
+df_baseline %>%
+  select(-contains(c("name", "numb", "phone", "cell", "mobile", "mail", "contact", "address"))) %>%
+  relocate(ResponseID, ResponseSet, weight) %>% 
+  write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
+
+df_baseline %>% select(contains("12"))
+```
+
+
+## Distribution
+
+### General
+
+```{r}
+df_baseline %>% 
+  ggplot(aes(ipl12s, stat(density), weight = weight)) +
+  geom_histogram(color = "black", fill = "grey") +
+  geom_density() +
+  theme_ipsum()
+```
+
+### Spatial
+
+```{r}
+ussf::boundaries(geography = "state") %>%
+  select(stateCurrent = NAME) %>% 
+  left_join(
+    df_baseline %>% 
+      mutate(
+        stateCurrent = if_else(stateCurrent == "Refused", NA_character_, stateCurrent),
+        stateCurrent = if_else(stateCurrent == "I do not reside in the United States", NA_character_, stateCurrent)
+      ) %>% 
+      group_by(stateCurrent) %>% 
+      summarize(
+        ipl12s = mean(ipl12s, na.rm = T),
+        weight = mean(weight, na.rm = T)
+      ),
+    by = "stateCurrent"
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ipl12s, weight = weight), size = 0.3) +
+  scale_fill_viridis_c() +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Mean IPL-12 score"
+  )
+```
+
+
+## Descriptives
+
+```{r, eval=F}
+df_baseline %>% select(contains("educ"))
+```
+
+
+### Highest education level
+
+```{r}
+df_baseline %>% 
+  group_by(educationLevel) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>%
+  arrange(ipl12s) %>% 
+  mutate(educationLevel = fct_inorder(educationLevel, ipl12s) %>% fct_rev()) %>% 
+  ggplot(aes(educationLevel, ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum() +
+  coord_flip()
+```
+
+
+### English proficiency
+
+#### Speak
+
+```{r}
+df_baseline %>% 
+  group_by(speak) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>%
+  arrange(ipl12s) %>% 
+  mutate(speak = fct_inorder(speak, ipl12s) %>% fct_rev()) %>% 
+  ggplot(aes(speak, ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+#### Read
+
+```{r}
+df_baseline %>% 
+  group_by(read) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>%
+  arrange(ipl12s) %>% 
+  mutate(read = fct_inorder(read, ipl12s) %>% fct_rev()) %>% 
+  ggplot(aes(read, ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+### Gender
+
+```{r}
+df_baseline %>% 
+  mutate(
+    female = recode(gender, "Male" = "0", "Female" = "1", .default = "0") %>% as.character %>% parse_integer(),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
+    unemployment = unemploymentBeneBaseline %>% as.integer()  
+  ) %>%
+  group_by(female) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>% 
+  ggplot(aes(factor(female), ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+### Income
+
+```{r}
+df_baseline %>% 
+  group_by(income) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>% 
+  ggplot(aes(income, ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+### Unemployment
+
+```{r}
+df_baseline %>% 
+  mutate(
+    female = recode(gender, "Male" = "0", "Female" = "1", .default = "0") %>% as.character %>% parse_integer(),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
+    unemployment = unemploymentBeneBaseline %>% as.integer()  
+  ) %>%
+  group_by(unemployment) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>% 
+  ggplot(aes(factor(unemployment), ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+### Year of arrival
+
+```{r}
+df_baseline %>% 
+  group_by(yearArrive) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>% 
+  ggplot(aes(factor(yearArrive), ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+### Country of birth
+
+```{r}
+df_baseline %>% 
+  group_by(bcountryBinned) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>%
+  arrange(ipl12s) %>% 
+  mutate(bcountryBinned = fct_inorder(bcountryBinned, ipl12s) %>% fct_rev()) %>% 
+  ggplot(aes(bcountryBinned, ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+
+### Household size
+
+```{r}
+df_baseline %>%
+  filter(householdSize <= 11) %>% 
+  group_by(householdSize) %>% 
+  summarise(
+    ipl12s = mean(ipl12s, na.rm = TRUE),
+    weight = mean(weight, na.rm = TRUE)
+    ) %>%
+  drop_na() %>% 
+  ggplot(aes(householdSize, ipl12s, weight = weight)) +
+  geom_col() +
+  theme_ipsum()
+```
+

@@ -1,16 +1,16 @@
 ---
-title: "Survey Rates - September 2020"
+title: "Survey Rates - October 2020"
 author: "Saurabh Khanna"
 date: "`r Sys.Date()`"
 output:
-  html_document:
-    toc: yes
-    toc_depth: '3'
-    df_print: paged
   pdf_document:
     toc: yes
     toc_depth: 3
     number_sections: no
+  html_document:
+    toc: yes
+    toc_depth: '3'
+    df_print: paged
 ---
 
 
@@ -26,21 +26,25 @@ knitr::opts_chunk$set(fig.pos = 'H')
 
 ```{r}
 # Libraries
-pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont)
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies)
 extrafont::loadfonts()
 # Parameters
 df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
 
 df_updated <- 
-  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all_september.xlsx")) %>% 
+  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all.xlsx")) %>% 
   mutate(
     number_from = parse_number(number_from) %>% as.character(),
-    date = as_datetime(date)
+    date = as_datetime(date),
+    month = month(date),
+    year = year(date),
+    wave = str_c(month, year, sep = "-")
   ) %>% 
-  arrange(number_from, desc(date)) %>% 
-  distinct(number_from, .keep_all = TRUE) %>% 
+  arrange(number_from, desc(date)) %>%
+  filter(wave == "10-2020") %>%  # adjust wave here as needed
+  distinct(number_from, .keep_all = TRUE) %>%
   drop_na(number_from)
-  
+
 
 df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
 df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
@@ -73,7 +77,7 @@ df_main <-
   df_baseline %>% 
   inner_join(df_twilio, ., by = "study_ID") %>%
   inner_join(df_updated, by = "number_from") %>% 
-  filter(!(number_from %in% failed_nos)) %>% 
+  filter(!(number_from %in% failed_nos)) %>%
   mutate(
     lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
     lang_match = 
@@ -94,10 +98,126 @@ df_main <-
 ```
 
 
-## Overall
+
+```{r}
+## For PoliSci paper
+
+# df_main %>%
+#   mutate(
+#     survey_started = q1_response != "No Data",
+#     survey_completed = q18_response != "No Data"
+#   ) %>% 
+#   filter(medium == "WhatsApp", survey_completed) %>% 
+#   mutate(
+#     id_matched = (yearArrive == q18_response)
+#   ) %>% 
+#   count(id_matched)
+```
+
+
+
+```{r}
+## Balance tables
+
+# df_balance <-
+#   df_main %>%
+#   filter(medium == "WhatsApp") %>%
+#   mutate(
+#     survey_completed = q18_response != "No Data",
+#     bal_match = if_else(survey_completed & yearArrive == q18_response, 1L, 0L),
+#     bal_match = if_else(is.na(bal_match), 0L, bal_match),
+#     female = recode(gender, "Male" = "0", "Female" = "1", .default = "0") %>% as.character %>% parse_integer(),
+#     unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
+#     unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
+#     unemployment = unemploymentBeneBaseline %>% as.integer()  
+#   ) %>% 
+#   select(bal_match, birthYear, female, unemployment, income, famsize = householdSize, country = bcountryBinned) %>% 
+#   dummy_cols(select_columns = "country", ignore_na = TRUE) %>% 
+#   rename(country_Congo = `country_Congo - Kinshasa`)
+# 
+# haven::write_dta(df_balance, "df_balance.dta", version = 13)
+# 
+# t.test(birthYear ~ bal_match, data = df_balance)
+# t.test(female ~ bal_match, data = df_balance)
+# t.test(unemployment ~ bal_match, data = df_balance)
+# t.test(famsize ~ bal_match, data = df_balance)
+# t.test(income ~ bal_match, data = df_balance)
+# t.test(country_Iraq ~ bal_match, data = df_balance)
+# t.test(country_Congo ~ bal_match, data = df_balance)
+# t.test(country_Afghanistan ~ bal_match, data = df_balance)
+# t.test(country_Ukraine ~ bal_match, data = df_balance)
+# t.test(country_Somalia ~ bal_match, data = df_balance)
+# t.test(country_Other ~ bal_match, data = df_balance)
+# 
+# lm_robust(birthYear ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(female ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(unemployment ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(income ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(famsize ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(country_Iraq ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(country_Congo ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(country_Afghanistan ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(country_Ukraine ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(country_Somalia ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+# lm_robust(country_Other ~ bal_match, data = df_balance, se_type = "stata") %>% summary()
+```
+
+
+```{r, eval=F}
+## Raw logs
+
+# Joining raw logs into 1 file
+# setwd("D:/Everything/GitHub/ipl-lirs/data/raw_logs")
+# df_raw <- plyr::ldply(list.files(), read.csv, header=TRUE) %>% as_tibble()
+# setwd(here::here())
+```
+
+
+```{r, eval=F}
+# survey_dates <-
+#   df_raw %>%
+#   filter(str_detect(`To`, "whatsapp")) %>% 
+#   mutate(
+#     number_from = parse_number(To) %>% as.character(),
+#     survey_date = as_date(SentDate)
+#   ) %>% 
+#   inner_join(df_main, by = "number_from") %>% 
+#   arrange(number_from, desc(survey_date)) %>% 
+#   distinct(number_from, .keep_all = T) %>% 
+#   select(number_from, survey_date)
+# 
+# vasco_file <-
+#   df_raw %>%
+#   filter(str_detect(`To`, "whatsapp")) %>% 
+#   mutate(
+#     number_from = parse_number(To) %>% as.character(),
+#     timestamp = as_datetime(SentDate),
+#     survey_date = as_date(SentDate)
+#   ) %>%
+#   relocate(number_from, timestamp, survey_date) %>% 
+#   inner_join(df_main, by = "number_from") %>%
+#   filter(q18_response != "No Data") %>% 
+#   inner_join(survey_dates, by = c("number_from", "survey_date")) %>%
+#   arrange(number_from, timestamp) %>% 
+#   group_by(number_from) %>% 
+#   summarize(
+#     messages = n(),
+#     duration = interval(first(timestamp), last(timestamp)) %>% time_length("minute")
+#   )
+# 
+# vasco_file %>% 
+#   ggplot(aes(messages, stat(count)))+
+#   geom_histogram(fill = "gray", color = "black") +
+#   stat_bin(aes(y = cumsum(..count..)), geom = "step") +
+#   hrbrthemes::theme_ipsum()
+```
+
+
+
+## Figures (Overall)
 
 ```{r, fig.asp = 1}
-df_main %>% 
+df_main %>%
   transmute(
     medium,
     lang,
@@ -433,7 +553,6 @@ df_main %>%
     x = "",
     y = "Survey rate"
   )
-
 ```
 
 

@@ -1,0 +1,167 @@
+---
+title: "LIRS Survey Report - September 2020"
+author: "Saurabh Khanna"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 4
+    number_sections: no
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+
+\newpage
+
+# September 2020 Wave
+
+```{r}
+# Libraries
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies)
+extrafont::loadfonts()
+# Parameters
+df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
+
+df_updated <- 
+  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all_september.xlsx")) %>% 
+  mutate(
+    number_from = parse_number(number_from) %>% as.character(),
+    date = as_datetime(date)
+  ) %>% 
+  arrange(number_from, desc(date)) %>% 
+  distinct(number_from, .keep_all = TRUE) %>% 
+  drop_na(number_from)
+
+
+df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
+df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
+
+df_twilio <- 
+  bind_rows(
+    df_whatsapp_twilio %>% select(study_ID, number_from = whatsAppNumber_final, lang = languageFollowUps), 
+    df_sms_twilio %>% select(study_ID, number_from = smsNumber_final, lang = languageFollowUps),
+    .id = "medium"
+  ) %>% 
+  mutate(
+    medium = recode(medium, `1` = "WhatsApp", `2` = "SMS", .default = NA_character_),
+  ) %>% 
+  distinct(study_ID, .keep_all = TRUE) %>% 
+  distinct(number_from, .keep_all = TRUE)
+
+# df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
+failed_nos <- 
+  read_csv(here::here("data", "merge/failed_messages.csv")) %>% 
+  mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
+
+rm(df_whatsapp_twilio, df_sms_twilio)
+```
+
+
+```{r}
+df_main <-
+  df_baseline %>% 
+  inner_join(df_twilio, ., by = "study_ID") %>%
+  inner_join(df_updated, by = "number_from") %>% 
+  filter(!(number_from %in% failed_nos)) %>% 
+  mutate(
+    lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
+    lang_match = 
+      case_when(
+        lang == "Arabic" & Arabic %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Dari/Farsi" & Farsi %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Dari/Farsi" & Dari %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "English" & English %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Farsi" & Farsi %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Farsi" & Dari %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "French" & French %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Russian" & Russian %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Spanish" & Spanish %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        lang == "Swahili" & Swahili %in% c("NATIVE", "R", "RW", "W", "R NATIVE", "RW NATIVE") ~ "Match",
+        TRUE ~ "No match"
+      ),
+    survey_started = (q1_response != "No Data"),
+    survey_completed = (q18_response != "No Data"),
+    id_matched = (yearArrive == q18_response),
+    month = month(date),
+    year = year(date)
+  )
+
+## focusing on survey 
+```
+
+
+## Overall stats
+
+On average, respondents who started the survey answered around 78% survey questions. 
+
+```{r}
+df_main %>%
+  filter(survey_started) %>% 
+  select(q1_response:q18_response) %>%
+  na_if("No Data") %>% 
+  mutate(
+    row_nas = rowSums(!is.na(.)) / 18
+  ) %>%
+  ggplot(aes(row_nas)) +
+  geom_histogram(fill = "gray", color = "black", binwidth = 0.05) +
+  geom_vline(aes(xintercept = mean(row_nas, na.rm = TRUE)), linetype = "dashed", color = "blue") +
+  scale_x_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Percentage questions answered",
+    y = "Number of respondents",
+    caption = "Note: Blue dashed line represents the distribution mean"
+  )
+```
+
+
+The question-wise response rates for survey starters stays consistent - falling slightly from 90% to 80%.
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(q1_response:q18_response) %>%
+  na_if("No Data") %>% 
+  summarise_at(vars(starts_with("q")), ~ mean(!is.na(.))) %>% 
+  pivot_longer(cols = starts_with("q"), names_to = "question", values_to = "answers") %>% 
+  mutate(
+    conditional = question %in% c("q4_response", "q15_response", "q16_response"),
+    question = str_replace(question, "_response", ""),
+    question = str_replace(question, "q", "Question "),
+    question = question %>% fct_inorder() %>% fct_rev()
+  ) %>% 
+  ggplot(aes(question, answers, fill = conditional)) +
+  geom_col() +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  coord_flip() +
+  labs(
+    x = "Survey Questions",
+    y = "Percentage respondents answering",
+    fill = "Conditional question"
+  )
+```
+
+## Question-wise plots
+
+### Q1
+
+```{r}
+
+```
+
