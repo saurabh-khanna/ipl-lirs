@@ -18,24 +18,25 @@ knitr::opts_chunk$set(fig.pos = 'H')
 
 \newpage
 
-# September 2020 Wave
-
 ```{r}
 # Libraries
-pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies)
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies, zoo, hrbrthemes)
 extrafont::loadfonts()
 # Parameters
 df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
 
 df_updated <- 
-  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all_september.xlsx")) %>% 
+  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all.xlsx")) %>% 
   mutate(
     number_from = parse_number(number_from) %>% as.character(),
-    date = as_datetime(date)
+    date = as_datetime(date),
+    wave = str_c(month(date), year(date), sep = "-")
   ) %>% 
-  arrange(number_from, desc(date)) %>% 
-  distinct(number_from, .keep_all = TRUE) %>% 
+  mutate(wave = if_else(wave == "8-2020", "9-2020", wave)) %>%
+  arrange(number_from, desc(date)) %>%
+  distinct(wave, number_from, .keep_all = TRUE) %>%
   drop_na(number_from)
+
 
 
 df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
@@ -66,9 +67,9 @@ rm(df_whatsapp_twilio, df_sms_twilio)
 
 ```{r}
 df_main <-
-  df_baseline %>% 
-  inner_join(df_twilio, ., by = "study_ID") %>%
-  inner_join(df_updated, by = "number_from") %>% 
+  df_updated %>% 
+  inner_join(df_twilio, ., by = "number_from") %>%
+  inner_join(df_baseline, by = "study_ID") %>% 
   filter(!(number_from %in% failed_nos)) %>% 
   mutate(
     lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
@@ -89,23 +90,22 @@ df_main <-
     survey_started = (q1_response != "No Data"),
     survey_completed = (q18_response != "No Data"),
     id_matched = (yearArrive == q18_response),
-    month = month(date),
-    year = year(date)
-  )
-
-## focusing on survey 
+    wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020"))
+  ) %>% 
+  mutate_at(vars(q1_response:q18_response), str_to_lower) %>% 
+  mutate_at(vars(q1_response:q18_response), ~ str_replace_all(., "[.]", ""))
 ```
 
 
 ## Overall stats
 
-On average, respondents who started the survey answered around 78% survey questions. 
+On average, respondents who started the survey answered around 85% survey questions. 
 
 ```{r}
 df_main %>%
   filter(survey_started) %>% 
-  select(q1_response:q18_response) %>%
-  na_if("No Data") %>% 
+  select(wave, q1_response:q18_response) %>%
+  na_if("no data") %>% 
   mutate(
     row_nas = rowSums(!is.na(.)) / 18
   ) %>%
@@ -113,9 +113,10 @@ df_main %>%
   geom_histogram(fill = "gray", color = "black", binwidth = 0.05) +
   geom_vline(aes(xintercept = mean(row_nas, na.rm = TRUE)), linetype = "dashed", color = "blue") +
   scale_x_continuous(
-    breaks = scales::breaks_width(0.1),
+    breaks = scales::breaks_width(0.2),
     labels = scales::percent_format(accuracy = 1)
   ) +
+  facet_wrap(vars(wave)) +
   theme_bw() +
   labs(
     x = "Percentage questions answered",
@@ -124,14 +125,16 @@ df_main %>%
   )
 ```
 
+\newpage
 
 The question-wise response rates for survey starters stays consistent - falling slightly from 90% to 80%.
 
 ```{r}
 df_main %>% 
   filter(survey_started) %>% 
-  select(q1_response:q18_response) %>%
-  na_if("No Data") %>% 
+  select(wave, q1_response:q18_response) %>%
+  na_if("no data") %>% 
+  group_by(wave) %>% 
   summarise_at(vars(starts_with("q")), ~ mean(!is.na(.))) %>% 
   pivot_longer(cols = starts_with("q"), names_to = "question", values_to = "answers") %>% 
   mutate(
@@ -143,12 +146,13 @@ df_main %>%
   ggplot(aes(question, answers, fill = conditional)) +
   geom_col() +
   scale_y_continuous(
-    breaks = scales::breaks_width(0.1),
+    breaks = scales::breaks_width(0.2),
     labels = scales::percent_format(accuracy = 1)
   ) +
   scale_fill_brewer(palette = "Set2") +
   theme_bw() +
   theme(legend.position = "bottom") +
+  facet_wrap(vars(wave)) +
   coord_flip() +
   labs(
     x = "Survey Questions",
@@ -157,11 +161,154 @@ df_main %>%
   )
 ```
 
+\newpage
+
 ## Question-wise plots
 
 ### Q1
 
-```{r}
+Which of these descriptions best applies to what you have been doing for the last four weeks?   Please respond with the number of your response.
 
+1. In paid work
+2. In school
+3. Unemployed and actively looking for a job
+4. Unemployed and not actively looking for a job
+5. Other
+
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q1_response) %>%
+  na_if("no data") %>% 
+  mutate(ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()) %>%
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(ans, percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
 ```
 
+\newpage
+
+### Q2
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q2_response) %>%
+  na_if("no data") %>% 
+  mutate(ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()) %>%
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(ans, percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q3
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q3_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = recode(ans, "yes" = "1", "no" = "2"),
+    ans = if_else(ans %in% c(1,2), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q4
+
+What was the total amount of unemployment compensation you received over the last four weeks? Please respond with the number of your response.
+
+1. \$0-$500
+2. \$501-$1000
+3. \$1001-$1500
+4. \$1501-$2000
+5. $2001+
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q4_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
