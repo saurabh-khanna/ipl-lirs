@@ -1,5 +1,5 @@
 ---
-title: "LIRS Survey Report - September 2020"
+title: "LIRS Followup Survey Report (Sep-Oct 2020)"
 author: "Saurabh Khanna"
 date: "`r Sys.Date()`"
 output:
@@ -36,7 +36,6 @@ df_updated <-
   arrange(number_from, desc(date)) %>%
   distinct(wave, number_from, .keep_all = TRUE) %>%
   drop_na(number_from)
-
 
 
 df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
@@ -97,7 +96,61 @@ df_main <-
 ```
 
 
-## Overall stats
+## Response rate stats
+
+### Overall
+
+```{r}
+df_main %>%
+  select(wave, survey_started, survey_completed) %>% 
+  group_by(wave) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -wave, names_to = "name", values_to = "proportion") %>%
+  full_join(
+    df_main %>% 
+      select(wave, survey_started, survey_completed) %>%
+      group_by(wave) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -wave, names_to = "name", values_to = "count"),
+    by = c("wave", "name")
+  ) %>% 
+  arrange(wave) %>% 
+  knitr::kable()
+
+df_main %>% 
+  select(wave, survey_started, survey_completed) %>% 
+  group_by(wave) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -wave, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  ggplot(aes(name, value)) +
+  geom_col(color = "black") +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.2),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  facet_wrap(vars(wave)) +
+  theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+  labs(
+    x = "",
+    y = "Survey rate"
+  )
+```
+
+\newpage
 
 On average, respondents who started the survey answered around 85% survey questions. 
 
@@ -127,7 +180,9 @@ df_main %>%
 
 \newpage
 
-The question-wise response rates for survey starters stays consistent - falling slightly from 90% to 80%.
+### Question-wise
+
+The question-wise response rates for survey starters stays consistent.
 
 ```{r}
 df_main %>% 
@@ -163,7 +218,7 @@ df_main %>%
 
 \newpage
 
-## Question-wise plots
+## Question-wise stats
 
 ### Q1
 
@@ -208,6 +263,14 @@ df_main %>%
 
 ### Q2
 
+In the past four weeks, how many hours did you usually work each week? Please respond with the number of your response.
+
+1. 0
+2. 1-10
+3. 11-20
+4. 21-35
+5. 36 or more
+
 ```{r}
 df_main %>% 
   filter(survey_started) %>% 
@@ -239,6 +302,11 @@ df_main %>%
 \newpage
 
 ### Q3
+
+In the past four weeks, have you received any money from unemployment benefits? Please respond with the number of your response.
+
+1. Yes
+2. No
 
 ```{r}
 df_main %>% 
@@ -273,7 +341,7 @@ df_main %>%
 
 \newpage
 
-### Q4
+### Q4 (Conditional on being unemployed)
 
 What was the total amount of unemployment compensation you received over the last four weeks? Please respond with the number of your response.
 
@@ -307,6 +375,567 @@ df_main %>%
     labels = scales::percent_format(accuracy = 1)
   ) +
   theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q5
+
+In the last four weeks, which of the below best describes your living situation? Please respond with the number of your response.
+
+1. House
+2. Apartment
+3. Mobile home
+4. Other type of housing
+5. No housing (homeless)
+
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q5_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q6
+
+Is your current house, apartment, or mobile home…? Please respond with the number of your response.
+
+1. Owned free and clear
+2. Owned with a mortgage or loan (including home equity loans)
+3. Rented
+4. Occupied without payment of rent
+
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q6_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q7
+
+Did you pay your last month’s rent or mortgage on time? Please respond with the number of your response.
+
+1. Yes
+2. No
+3. Payment was deferred
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q7_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q8
+
+In the last four weeks, which of these statements best describes the food eaten in your household? Please respond with the number of your response.
+
+1. Enough of the kinds of food (I/we) wanted to eat
+2. Enough, but not always the kinds of food (I/we) wanted to eat
+3. Sometimes not enough to eat
+4. Often not enough to eat
+
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q8_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q9
+
+In the last four weeks, did you or anyone in your household get free groceries or a free meal? Please respond with the number of your response.
+
+1. Yes
+2. No
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q9_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = recode(ans, "yes" = "1", "no" = "2"),
+    ans = if_else(ans %in% c(1,2), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q10
+
+How confident are you that your household will be able to afford the kinds of food you need for the next four weeks? Please respond with the number of your response.
+
+1. Not at all confident
+2. Somewhat confident
+3. Moderately confident
+4. Very confident
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q10_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q11
+
+Would you say your health in general has been excellent, very good, good, fair, or poor? Please respond with the number of your response.
+
+1. Excellent
+2. Very good
+3. Good
+4. Fair
+5. Poor
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q11_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q12
+
+During the last four weeks, about how often did you feel nervous? Please respond with the number of your response.
+
+1. All of the time
+2. Most of the time
+3. Some of the time
+4. A little of the time
+5. None of the time
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q12_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q13
+
+At any time in the last four weeks, did you delay getting medical care? Please respond with the number of your response.
+
+1. Yes
+2. No
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q13_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = recode(ans, "yes" = "1", "no" = "2"),
+    ans = if_else(ans %in% c(1,2), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q14
+
+In the past four weeks, how have children in this household received education from their school? Please respond with the number of your response.
+
+1. In-person instruction at school
+2. Distance learning only (online or using paper materials)
+3. Both in-person instruction and distance learning
+4. Neither in-person instruction nor distance learning
+5. School closed due to scheduled vacation or break
+6. Not applicable
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q14_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5,6), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q15 (Conditional on children in household)
+
+Which type of distance learning education have your children received? Please respond with the number of your response.
+
+1. Online only (self-paced or real-time)
+2. Paper materials only
+3. Both online and paper materials
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q15_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q16 (Conditional on children in household)
+
+How often is the Internet available to children for educational purposes? Please respond with the number of your response.
+
+1. Always available
+2. Usually available
+3. Sometimes available
+4. Rarely available
+5. Never available
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q16_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Responses",
+    y = "Percentage of respondents"
+  )
+```
+
+\newpage
+
+### Q17
+
+What year were you born? (for example, 1980)
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q17_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = parse_number(ans),
+    ans = if_else(ans >= 1900 & ans <= 2020, ans, NA_real_) %>% as.integer()
+  ) %>%
+  drop_na(ans) %>% 
+  ggplot(aes(ans)) +
+  geom_histogram() +
+  facet_wrap(vars(wave)) +
+  theme_bw() +
+  labs(
+    x = "Response distribution",
+    y = "Number of respondents"
+  )
+```
+
+\newpage
+
+### Q18
+
+What year did you arrive in the United States? (for example, 2000)
+
+```{r}
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q18_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = parse_number(ans),
+    ans = if_else(ans >= 2010 & ans <= 2020, ans, NA_real_) %>% as.integer()
+  ) %>%
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  ggplot(aes(factor(ans), percent)) +
+  geom_col() +
+  facet_wrap(vars(wave)) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  coord_flip() +
   labs(
     x = "Responses",
     y = "Percentage of respondents"

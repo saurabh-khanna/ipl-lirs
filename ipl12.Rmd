@@ -34,7 +34,7 @@ df_baseline %>%
   relocate(ResponseID, ResponseSet, weight) %>% 
   write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
 
-df_baseline %>% select(contains("12"))
+#df_baseline %>% select(contains("12"))
 ```
 
 
@@ -208,6 +208,7 @@ df_baseline %>%
     weight = mean(weight, na.rm = TRUE)
     ) %>%
   drop_na() %>% 
+  filter(yearArrive >= 2010) %>% 
   ggplot(aes(factor(yearArrive), ipl12s, weight = weight)) +
   geom_col() +
   theme_ipsum()
