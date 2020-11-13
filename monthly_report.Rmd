@@ -1,6 +1,6 @@
 ---
-title: "LIRS Followup Survey Report (Sep-Oct 2020)"
-author: "Saurabh Khanna"
+title: "LIRS Rapid Response Survey: Sep-Oct 2020 Follow-up Results"
+author: "Immigration Policy Lab"
 date: "`r Sys.Date()`"
 output:
   pdf_document:
