@@ -5,8 +5,8 @@ date: "`r Sys.Date()`"
 output:
   pdf_document:
     toc: yes
-    toc_depth: 4
-    number_sections: no
+    toc_depth: 2
+    number_sections: yes
 ---
 
 
@@ -24,7 +24,6 @@ pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastD
 extrafont::loadfonts()
 # Parameters
 df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
-
 df_updated <- 
   read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all.xlsx")) %>% 
   mutate(
@@ -36,11 +35,8 @@ df_updated <-
   arrange(number_from, desc(date)) %>%
   distinct(wave, number_from, .keep_all = TRUE) %>%
   drop_na(number_from)
-
-
 df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
 df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
-
 df_twilio <- 
   bind_rows(
     df_whatsapp_twilio %>% select(study_ID, number_from = whatsAppNumber_final, lang = languageFollowUps), 
@@ -52,14 +48,12 @@ df_twilio <-
   ) %>% 
   distinct(study_ID, .keep_all = TRUE) %>% 
   distinct(number_from, .keep_all = TRUE)
-
 # df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
 failed_nos <- 
   read_csv(here::here("data", "merge/failed_messages.csv")) %>% 
   mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
   distinct(number_from) %>% 
   unlist()
-
 rm(df_whatsapp_twilio, df_sms_twilio)
 ```
 
@@ -96,9 +90,9 @@ df_main <-
 ```
 
 
-## Response rate stats
+# Response rate stats
 
-### Overall
+## Overall
 
 ```{r}
 df_main %>%
@@ -109,7 +103,7 @@ df_main %>%
     `Survey completed` = mean(survey_completed, na.rm = TRUE)
   ) %>% 
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
-  pivot_longer(cols = -wave, names_to = "name", values_to = "proportion") %>%
+  pivot_longer(cols = -wave, names_to = "name", values_to = "percentage") %>%
   full_join(
     df_main %>% 
       select(wave, survey_started, survey_completed) %>%
@@ -123,6 +117,11 @@ df_main %>%
     by = c("wave", "name")
   ) %>% 
   arrange(wave) %>% 
+  mutate(
+    percentage = (percentage * 100) %>% round(2) %>% as.character() %>% str_c("%"),
+    percentage = replace_na(percentage, "--"),
+    count = replace_na(count, "--")
+  ) %>% 
   knitr::kable()
 
 df_main %>% 
@@ -180,7 +179,7 @@ df_main %>%
 
 \newpage
 
-### Question-wise
+## Question-wise
 
 The question-wise response rates for survey starters stays consistent.
 
@@ -218,9 +217,9 @@ df_main %>%
 
 \newpage
 
-## Question-wise stats
+# Question-wise stats
 
-### Q1
+## Q1
 
 Which of these descriptions best applies to what you have been doing for the last four weeks?   Please respond with the number of your response.
 
@@ -247,6 +246,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -261,7 +261,7 @@ df_main %>%
 
 \newpage
 
-### Q2
+## Q2
 
 In the past four weeks, how many hours did you usually work each week? Please respond with the number of your response.
 
@@ -287,6 +287,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -301,7 +302,7 @@ df_main %>%
 
 \newpage
 
-### Q3
+## Q3
 
 In the past four weeks, have you received any money from unemployment benefits? Please respond with the number of your response.
 
@@ -327,6 +328,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -341,7 +343,7 @@ df_main %>%
 
 \newpage
 
-### Q4 (Conditional on being unemployed)
+## Q4 (Conditional on being unemployed)
 
 What was the total amount of unemployment compensation you received over the last four weeks? Please respond with the number of your response.
 
@@ -369,6 +371,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -383,7 +386,7 @@ df_main %>%
 
 \newpage
 
-### Q5
+## Q5
 
 In the last four weeks, which of the below best describes your living situation? Please respond with the number of your response.
 
@@ -412,6 +415,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -426,7 +430,7 @@ df_main %>%
 
 \newpage
 
-### Q6
+## Q6
 
 Is your current house, apartment, or mobile home…? Please respond with the number of your response.
 
@@ -454,6 +458,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -468,7 +473,7 @@ df_main %>%
 
 \newpage
 
-### Q7
+## Q7
 
 Did you pay your last month’s rent or mortgage on time? Please respond with the number of your response.
 
@@ -494,6 +499,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -508,7 +514,7 @@ df_main %>%
 
 \newpage
 
-### Q8
+## Q8
 
 In the last four weeks, which of these statements best describes the food eaten in your household? Please respond with the number of your response.
 
@@ -536,6 +542,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -550,7 +557,7 @@ df_main %>%
 
 \newpage
 
-### Q9
+## Q9
 
 In the last four weeks, did you or anyone in your household get free groceries or a free meal? Please respond with the number of your response.
 
@@ -576,6 +583,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -590,7 +598,7 @@ df_main %>%
 
 \newpage
 
-### Q10
+## Q10
 
 How confident are you that your household will be able to afford the kinds of food you need for the next four weeks? Please respond with the number of your response.
 
@@ -617,6 +625,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -631,7 +640,7 @@ df_main %>%
 
 \newpage
 
-### Q11
+## Q11
 
 Would you say your health in general has been excellent, very good, good, fair, or poor? Please respond with the number of your response.
 
@@ -659,6 +668,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -673,7 +683,7 @@ df_main %>%
 
 \newpage
 
-### Q12
+## Q12
 
 During the last four weeks, about how often did you feel nervous? Please respond with the number of your response.
 
@@ -701,6 +711,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -715,7 +726,7 @@ df_main %>%
 
 \newpage
 
-### Q13
+## Q13
 
 At any time in the last four weeks, did you delay getting medical care? Please respond with the number of your response.
 
@@ -741,6 +752,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -755,7 +767,7 @@ df_main %>%
 
 \newpage
 
-### Q14
+## Q14
 
 In the past four weeks, how have children in this household received education from their school? Please respond with the number of your response.
 
@@ -784,6 +796,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -798,7 +811,7 @@ df_main %>%
 
 \newpage
 
-### Q15 (Conditional on children in household)
+## Q15 (Conditional on children in household)
 
 Which type of distance learning education have your children received? Please respond with the number of your response.
 
@@ -824,6 +837,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -838,7 +852,7 @@ df_main %>%
 
 \newpage
 
-### Q16 (Conditional on children in household)
+## Q16 (Conditional on children in household)
 
 How often is the Internet available to children for educational purposes? Please respond with the number of your response.
 
@@ -866,6 +880,7 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
@@ -880,7 +895,7 @@ df_main %>%
 
 \newpage
 
-### Q17
+## Q17
 
 What year were you born? (for example, 1980)
 
@@ -906,7 +921,7 @@ df_main %>%
 
 \newpage
 
-### Q18
+## Q18
 
 What year did you arrive in the United States? (for example, 2000)
 
@@ -929,13 +944,14 @@ df_main %>%
   ) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
+  geom_text(aes(label = count1), vjust = -0.3) +
   facet_wrap(vars(wave)) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
     labels = scales::percent_format(accuracy = 1)
   ) +
   theme_bw() +
-  coord_flip() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
   labs(
     x = "Responses",
     y = "Percentage of respondents"

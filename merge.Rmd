@@ -36,10 +36,8 @@ df_updated <-
   mutate(
     number_from = parse_number(number_from) %>% as.character(),
     date = as_datetime(date),
-    month = month(date),
-    year = year(date),
-    wave = str_c(month, year, sep = "-")
-  ) %>% 
+    wave = str_c(month(date), year(date), sep = "-")
+  ) %>% count(wave) 
   arrange(number_from, desc(date)) %>%
   filter(wave == "10-2020") %>%  # adjust wave here as needed
   distinct(number_from, .keep_all = TRUE) %>%
