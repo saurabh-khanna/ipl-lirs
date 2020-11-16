@@ -1,5 +1,5 @@
 ---
-title: "LIRS Rapid Response Survey: Sep-Oct 2020 Follow-up Results"
+title: "LIRS Rapid Response Survey: September-October 2020 Follow-up Results"
 author: "Immigration Policy Lab"
 date: "`r Sys.Date()`"
 output:
@@ -22,8 +22,11 @@ knitr::opts_chunk$set(fig.pos = 'H')
 # Libraries
 pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies, zoo, hrbrthemes)
 extrafont::loadfonts()
-# Parameters
+
+# baseline data
 df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
+
+# google sheet data
 df_updated <- 
   read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all.xlsx")) %>% 
   mutate(
@@ -35,6 +38,27 @@ df_updated <-
   arrange(number_from, desc(date)) %>%
   distinct(wave, number_from, .keep_all = TRUE) %>%
   drop_na(number_from)
+
+df_updated_manual <- 
+  read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all.xlsx"), sheet = "Post_failures") %>% 
+  mutate(
+    number_from = parse_number(number_from) %>% as.character(),
+    date = as_datetime(date),
+    wave = str_c(month(date), year(date), sep = "-")
+  ) %>% 
+  mutate(wave = if_else(wave == "8-2020", "9-2020", wave)) %>%
+  arrange(number_from, desc(date)) %>%
+  distinct(wave, number_from, .keep_all = TRUE) %>%
+  drop_na(number_from) %>% 
+  select(number_from, date, wave, q0_response, q1_response:q18_response) %>% 
+  mutate_at(vars(starts_with("q")), as.character)
+
+df_updated <- 
+  bind_rows(df_updated, df_updated_manual) %>% 
+  arrange(number_from, desc(date)) %>% 
+  distinct(wave, number_from, .keep_all = TRUE)
+
+# twilio contact data
 df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
 df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
 df_twilio <- 
@@ -48,17 +72,20 @@ df_twilio <-
   ) %>% 
   distinct(study_ID, .keep_all = TRUE) %>% 
   distinct(number_from, .keep_all = TRUE)
-# df_nomatch <- read_xlsx(here::here("data", "merge/lirs_postresponses_nomatch_all_september.xlsx"))
+
+rm(df_whatsapp_twilio, df_sms_twilio)
+
+# failed delivery numbers to exclude
 failed_nos <- 
   read_csv(here::here("data", "merge/failed_messages.csv")) %>% 
   mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
   distinct(number_from) %>% 
   unlist()
-rm(df_whatsapp_twilio, df_sms_twilio)
 ```
 
 
 ```{r}
+# merging it all
 df_main <-
   df_updated %>% 
   inner_join(df_twilio, ., by = "number_from") %>%
@@ -90,7 +117,7 @@ df_main <-
 ```
 
 
-# Response rate stats
+# Response rates
 
 ## Overall
 
@@ -217,11 +244,11 @@ df_main %>%
 
 \newpage
 
-# Question-wise stats
+# Question-wise results
 
-## Q1
+## Employment Situation
 
-Which of these descriptions best applies to what you have been doing for the last four weeks?   Please respond with the number of your response.
+Which of these descriptions best applies to what you have been doing for the last four weeks? Please respond with the number of your response.
 
 1. In paid work
 2. In school
@@ -261,7 +288,7 @@ df_main %>%
 
 \newpage
 
-## Q2
+## Hours Worked
 
 In the past four weeks, how many hours did you usually work each week? Please respond with the number of your response.
 
@@ -302,7 +329,7 @@ df_main %>%
 
 \newpage
 
-## Q3
+## Unemployment Benefits
 
 In the past four weeks, have you received any money from unemployment benefits? Please respond with the number of your response.
 
@@ -343,7 +370,7 @@ df_main %>%
 
 \newpage
 
-## Q4 (Conditional on being unemployed)
+## Unemployment Compensation (Conditional on being unemployed)
 
 What was the total amount of unemployment compensation you received over the last four weeks? Please respond with the number of your response.
 
@@ -386,7 +413,7 @@ df_main %>%
 
 \newpage
 
-## Q5
+## Living Situation
 
 In the last four weeks, which of the below best describes your living situation? Please respond with the number of your response.
 
@@ -430,7 +457,7 @@ df_main %>%
 
 \newpage
 
-## Q6
+## Ownership Status
 
 Is your current house, apartment, or mobile home…? Please respond with the number of your response.
 
@@ -473,7 +500,7 @@ df_main %>%
 
 \newpage
 
-## Q7
+## Rent Payment
 
 Did you pay your last month’s rent or mortgage on time? Please respond with the number of your response.
 
@@ -514,7 +541,7 @@ df_main %>%
 
 \newpage
 
-## Q8
+## Food Situation
 
 In the last four weeks, which of these statements best describes the food eaten in your household? Please respond with the number of your response.
 
@@ -557,7 +584,7 @@ df_main %>%
 
 \newpage
 
-## Q9
+## Free Groceries
 
 In the last four weeks, did you or anyone in your household get free groceries or a free meal? Please respond with the number of your response.
 
@@ -598,7 +625,7 @@ df_main %>%
 
 \newpage
 
-## Q10
+## Food Security
 
 How confident are you that your household will be able to afford the kinds of food you need for the next four weeks? Please respond with the number of your response.
 
@@ -640,7 +667,7 @@ df_main %>%
 
 \newpage
 
-## Q11
+## General Health Situation
 
 Would you say your health in general has been excellent, very good, good, fair, or poor? Please respond with the number of your response.
 
@@ -683,7 +710,7 @@ df_main %>%
 
 \newpage
 
-## Q12
+## Mental Health Situation
 
 During the last four weeks, about how often did you feel nervous? Please respond with the number of your response.
 
@@ -726,7 +753,7 @@ df_main %>%
 
 \newpage
 
-## Q13
+## Medical Care Access
 
 At any time in the last four weeks, did you delay getting medical care? Please respond with the number of your response.
 
@@ -767,7 +794,7 @@ df_main %>%
 
 \newpage
 
-## Q14
+## Education Situation
 
 In the past four weeks, how have children in this household received education from their school? Please respond with the number of your response.
 
@@ -811,7 +838,7 @@ df_main %>%
 
 \newpage
 
-## Q15 (Conditional on children in household)
+## Distance Learning (Conditional on children in household)
 
 Which type of distance learning education have your children received? Please respond with the number of your response.
 
@@ -852,7 +879,7 @@ df_main %>%
 
 \newpage
 
-## Q16 (Conditional on children in household)
+## Internet Access to Children (Conditional on children in household)
 
 How often is the Internet available to children for educational purposes? Please respond with the number of your response.
 
@@ -895,7 +922,7 @@ df_main %>%
 
 \newpage
 
-## Q17
+## Year of Birth
 
 What year were you born? (for example, 1980)
 
@@ -921,7 +948,7 @@ df_main %>%
 
 \newpage
 
-## Q18
+## Year of Arrival
 
 What year did you arrive in the United States? (for example, 2000)
 
