@@ -10,7 +10,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4, out.width = "100%")
 knitr::opts_chunk$set(fig.pos = 'H')
 ```
 
@@ -29,11 +29,10 @@ df_baseline <-
 
 ```{r}
 # extracting data for dlaitin on box
-df_baseline %>%
-  select(-contains(c("name", "numb", "phone", "cell", "mobile", "mail", "contact", "address"))) %>%
-  relocate(ResponseID, ResponseSet, weight) %>% 
-  write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
-
+# df_baseline %>%
+#   select(-contains(c("name", "numb", "phone", "cell", "mobile", "mail", "contact", "address"))) %>%
+#   relocate(ResponseID, ResponseSet, weight) %>% 
+#   write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
 #df_baseline %>% select(contains("12"))
 ```
 
@@ -47,6 +46,18 @@ df_baseline %>%
   ggplot(aes(ipl12s, stat(density), weight = weight)) +
   geom_histogram(color = "black", fill = "grey") +
   geom_density() +
+  theme_ipsum()
+
+df_baseline %>% 
+  pivot_longer(
+    cols = contains("12s"),
+    names_to = "measure",
+    values_to = "score"
+  ) %>% 
+  filter(measure != "ipl12s") %>% 
+  ggplot(aes(score, weight = weight)) +
+  geom_density(color = "black", fill = "grey", alpha = 0.5) +
+  facet_wrap(vars(measure)) +
   theme_ipsum()
 ```
 
@@ -102,6 +113,25 @@ df_baseline %>%
   geom_col() +
   theme_ipsum() +
   coord_flip()
+
+df_baseline %>%
+  group_by(educationLevel) %>% 
+  summarise_at(vars(contains("12s"), weight), mean, na.rm = T) %>%
+  drop_na() %>%
+  arrange(ipl12s) %>% 
+  mutate(speak = fct_inorder(educationLevel, ipl12s) %>% fct_rev()) %>%
+  pivot_longer(
+    cols = contains("12s"),
+    names_to = "measure",
+    values_to = "score"
+  ) %>% 
+  filter(measure != "ipl12s") %>% 
+  drop_na(educationLevel) %>% 
+  ggplot(aes(educationLevel, score, weight = weight)) +
+  geom_col() +
+  theme_ipsum() +
+  facet_wrap(vars(measure)) +
+  coord_flip()
 ```
 
 
@@ -121,7 +151,26 @@ df_baseline %>%
   mutate(speak = fct_inorder(speak, ipl12s) %>% fct_rev()) %>% 
   ggplot(aes(speak, ipl12s, weight = weight)) +
   geom_col() +
-  theme_ipsum()
+  theme_ipsum() +
+  coord_flip()
+
+df_baseline %>% 
+  group_by(speak) %>% 
+  summarise_at(vars(contains("12s"), weight), mean, na.rm = T) %>%
+  drop_na() %>%
+  arrange(ipl12s) %>% 
+  mutate(speak = fct_inorder(speak, ipl12s) %>% fct_rev()) %>%
+  pivot_longer(
+    cols = contains("12s"),
+    names_to = "measure",
+    values_to = "score"
+  ) %>% 
+  filter(measure != "ipl12s") %>% 
+  ggplot(aes(speak, score, weight = weight)) +
+  geom_col() +
+  facet_wrap(vars(measure)) +
+  theme_ipsum() + 
+  coord_flip()
 ```
 
 #### Read
