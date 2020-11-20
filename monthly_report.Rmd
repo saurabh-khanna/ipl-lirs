@@ -271,6 +271,32 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent, group = factor(ans), color = factor(ans))) +
+  geom_line(size = 1.5) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q1_response) %>%
+  na_if("no data") %>% 
+  mutate(ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()) %>%
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
