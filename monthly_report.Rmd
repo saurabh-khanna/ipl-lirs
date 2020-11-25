@@ -33,7 +33,7 @@ df_updated <-
     number_from = parse_number(number_from) %>% as.character(),
     date = as_datetime(date),
     wave = str_c(month(date), year(date), sep = "-")
-  ) %>% 
+  ) %>%
   mutate(wave = if_else(wave == "8-2020", "9-2020", wave)) %>%
   arrange(number_from, desc(date)) %>%
   distinct(wave, number_from, .keep_all = TRUE) %>%
@@ -110,10 +110,16 @@ df_main <-
     survey_started = (q1_response != "No Data"),
     survey_completed = (q18_response != "No Data"),
     id_matched = (yearArrive == q18_response),
-    wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020"))
+    wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020", "Nov 2020"))
   ) %>% 
   mutate_at(vars(q1_response:q18_response), str_to_lower) %>% 
   mutate_at(vars(q1_response:q18_response), ~ str_replace_all(., "[.]", ""))
+```
+
+
+```{r}
+df_updated %>% 
+  count(wave)
 ```
 
 
