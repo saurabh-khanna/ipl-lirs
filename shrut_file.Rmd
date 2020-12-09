@@ -1,0 +1,35 @@
+---
+title: "Shrut work"
+date: "`r Sys.Date()`"
+output:
+  github_document:
+    toc: yes
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+
+```{r}
+# Libraries
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, hrbrthemes, sf, ggcorrplot, plotly, ggradar, estimatr, texreg, estimatr)
+extrafont::loadfonts()
+
+# Parameters
+df <- read_csv(here::here("shrut_file.csv"))
+```
+
+
+```{r}
+df %>% glimpse()
+```
+
+```{r}
+df %>% select(geo_strategy, features_type, area_lim) %>% mutate_all(as_factor) %>% summary()
+
+df %>% filter(features_type == "opt", area_lim == 0.05, trial >= 6)
+```
+

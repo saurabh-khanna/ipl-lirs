@@ -1,5 +1,5 @@
 ---
-title: "LIRS Rapid Response Survey: September-October 2020 Follow-up Results"
+title: "LIRS Rapid Response Survey: September-November 2020 Follow-up Results"
 author: "Immigration Policy Lab"
 date: "`r Sys.Date()`"
 output:
@@ -117,9 +117,21 @@ df_main <-
 ```
 
 
+```{r, eval = F}
+df_main %>% count(wave)
+```
+
+
 ```{r}
-df_updated %>% 
-  count(wave)
+df1 <- df_main %>% filter(wave == "Sep 2020")
+df2 <- df_main %>% filter(wave == "Oct 2020")
+df3 <- df_main %>% filter(wave == "Nov 2020")
+
+df1 %>% inner_join(df2, by = "number_from")
+960/1021
+
+df2 %>% inner_join(df3, by = "number_from")
+946/962
 ```
 
 
@@ -157,6 +169,34 @@ df_main %>%
   ) %>% 
   knitr::kable()
 
+
+df_main %>% 
+  select(wave, survey_started, survey_completed) %>% 
+  group_by(wave) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -wave, names_to = "name", values_to = "value") %>% 
+  mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>%  
+  ggplot(aes(wave, value)) +
+  geom_line(aes(group = factor(name), color = factor(name)), size = 1) +
+  geom_point(aes(group = factor(name), color = factor(name)), size = 2) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves",
+    color = ""
+  )
+
+
 df_main %>% 
   select(wave, survey_started, survey_completed) %>% 
   group_by(wave) %>% 
@@ -167,6 +207,7 @@ df_main %>%
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
   pivot_longer(cols = -wave, names_to = "name", values_to = "value") %>% 
   mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(name, value)) +
   geom_col(color = "black") +
   scale_y_continuous(
@@ -178,7 +219,8 @@ df_main %>%
   theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
   labs(
     x = "",
-    y = "Survey rate"
+    y = "Survey rate",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -194,6 +236,7 @@ df_main %>%
   mutate(
     row_nas = rowSums(!is.na(.)) / 18
   ) %>%
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(row_nas)) +
   geom_histogram(fill = "gray", color = "black", binwidth = 0.05) +
   geom_vline(aes(xintercept = mean(row_nas, na.rm = TRUE)), linetype = "dashed", color = "blue") +
@@ -206,7 +249,8 @@ df_main %>%
   labs(
     x = "Percentage questions answered",
     y = "Number of respondents",
-    caption = "Note: Blue dashed line represents the distribution mean"
+    caption = "Note: Blue dashed line represents the distribution mean",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -230,6 +274,7 @@ df_main %>%
     question = str_replace(question, "q", "Question "),
     question = question %>% fct_inorder() %>% fct_rev()
   ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(question, answers, fill = conditional)) +
   geom_col() +
   scale_y_continuous(
@@ -244,7 +289,8 @@ df_main %>%
   labs(
     x = "Survey Questions",
     y = "Percentage respondents answering",
-    fill = "Conditional question"
+    fill = "Conditional question",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -277,8 +323,16 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  ggplot(aes(wave, percent, group = factor(ans), color = factor(ans))) +
-  geom_line(size = 1.5) +
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
   scale_y_continuous(
     breaks = scales::breaks_width(0.1),
     labels = scales::percent_format(accuracy = 1)
@@ -286,7 +340,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Waves",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
   )
 
 
@@ -302,7 +357,8 @@ df_main %>%
   ungroup() %>% 
   mutate(
     percent = count1 / count2
-  ) %>% 
+  ) %>%
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -314,7 +370,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -344,6 +401,41 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q2_response) %>%
+  na_if("no data") %>% 
+  mutate(ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()) %>%
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -355,7 +447,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -385,6 +478,45 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q3_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = recode(ans, "yes" = "1", "no" = "2"),
+    ans = if_else(ans %in% c(1,2), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -396,7 +528,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -428,6 +561,43 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q4_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -439,7 +609,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -472,6 +643,43 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q5_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -483,7 +691,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -514,7 +723,44 @@ df_main %>%
   ungroup() %>% 
   mutate(
     percent = count1 / count2
+  ) %>%
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q6_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4), ans, NA_character_) %>% as.integer()
   ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -526,7 +772,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -555,7 +802,44 @@ df_main %>%
   ungroup() %>% 
   mutate(
     percent = count1 / count2
+  ) %>%
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q7_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3), ans, NA_character_) %>% as.integer()
   ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -567,7 +851,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -599,6 +884,44 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q8_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -610,7 +933,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -640,6 +964,44 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q9_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = recode(ans, "yes" = "1", "no" = "2"),
+    ans = if_else(ans %in% c(1,2), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -651,7 +1013,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -682,6 +1045,43 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q10_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -693,7 +1093,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -725,6 +1126,44 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q11_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -736,7 +1175,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -768,6 +1208,44 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q12_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -779,7 +1257,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -809,6 +1288,45 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q13_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = recode(ans, "yes" = "1", "no" = "2"),
+    ans = if_else(ans %in% c(1,2), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -820,7 +1338,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -853,6 +1372,44 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q14_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5,6), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -864,7 +1421,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -894,6 +1452,44 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q15_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3), ans, NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -905,7 +1501,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -936,7 +1533,44 @@ df_main %>%
   ungroup() %>% 
   mutate(
     percent = count1 / count2
+  ) %>%
+  ggplot(aes(wave, percent)) +
+  geom_line(aes(group = factor(ans), color = factor(ans)), size = 1, show.legend = F) +
+  geom_point(aes(group = factor(ans), color = factor(ans)), size = 2, show.legend = F) +
+  ggrepel::geom_text_repel(
+    aes(label = ans, color = factor(ans)),
+    data = . %>% group_by(ans) %>% top_n(1, wt = wave),
+    nudge_x = 0.2,
+    direction = "y",
+    show.legend = F
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(0.1),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Waves",
+    y = "Percentage of respondents",
+    title = "Responses from all waves"
+  )
+
+df_main %>% 
+  filter(survey_started) %>% 
+  select(wave, ans = q16_response) %>%
+  na_if("no data") %>%
+  mutate(
+    ans = if_else(ans %in% c(1,2,3,4,5), ans, NA_character_) %>% as.integer()
   ) %>% 
+  drop_na(ans) %>% 
+  group_by(wave, ans) %>% 
+  summarise(count1 = n()) %>% 
+  mutate(count2 = sum(count1)) %>% 
+  ungroup() %>% 
+  mutate(
+    percent = count1 / count2
+  ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -948,7 +1582,8 @@ df_main %>%
   theme_bw() +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -968,13 +1603,15 @@ df_main %>%
     ans = if_else(ans >= 1900 & ans <= 2020, ans, NA_real_) %>% as.integer()
   ) %>%
   drop_na(ans) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(ans)) +
   geom_histogram() +
   facet_wrap(vars(wave)) +
   theme_bw() +
   labs(
     x = "Response distribution",
-    y = "Number of respondents"
+    y = "Number of respondents",
+    title = "Responses from last two waves"
   )
 ```
 
@@ -1001,6 +1638,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
+  filter(wave %in% c("Oct 2020", "Nov 2020")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1013,6 +1651,7 @@ df_main %>%
   theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
   labs(
     x = "Responses",
-    y = "Percentage of respondents"
+    y = "Percentage of respondents",
+    title = "Responses from last two waves"
   )
 ```
