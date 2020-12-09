@@ -325,14 +325,12 @@ df_baseline %>%
   ) %>% 
   filter(measure != "ipl12s") %>% 
   drop_na(years_in_us) %>% 
-  filter(years_in_us <= 10) %>% 
-  #mutate(yearArrive = as.integer(yearArrive)) %>% 
+  filter(years_in_us <= 10) %>%
   ggplot(aes(years_in_us, score, weight = weight)) +
   geom_line() +
   geom_point() +
   scale_x_continuous(breaks = seq(0, 10, 1)) +
   theme_ipsum() +
-  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
   facet_wrap(vars(measure))
 ```
 
