@@ -28,7 +28,7 @@ df_baseline <-
   mutate(
     years_in_us = 2020 - yearArrive,
     age_at_arrival = yearArrive - birthYear,
-    female = recode(gender, "Male" = "0", "Female" = "1", .default = "0") %>% as.character %>% parse_integer(),
+    female = recode(gender, "Male" = "0", "Female" = "1", .default = NA_character_) %>% as.character %>% parse_integer(),
     unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
     unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
     unemployment = unemploymentBeneBaseline %>% as.integer()
@@ -43,6 +43,91 @@ df_baseline <-
 #   relocate(ResponseID, ResponseSet, weight) %>% 
 #   write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
 #df_baseline %>% select(contains("12"))
+```
+
+## Summary statistics
+
+### IPL-12 scores
+
+Means (unweighted):
+
+```{r}
+df_baseline %>% 
+  select(contains("12s")) %>% 
+  summarize_all(~ mean(., na.rm = T)) %>% 
+  rename_all(~ str_c(., "_mean")) %>% 
+  relocate(ipl12s_mean)
+```
+Means (Weighted using sample weights):
+
+```{r}
+df_baseline %>% 
+  select(contains("12s"), weight) %>% 
+  summarize_at(vars(contains("12s")), ~ weighted.mean(., w = weight, na.rm = T)) %>% 
+  rename_all(~ str_c(., "_mean")) %>% 
+  relocate(ipl12s_mean)
+```
+
+Medians:
+
+```{r}
+df_baseline %>% 
+  select(contains("12s")) %>% 
+  summarize_all(~ median(., na.rm = T)) %>% 
+  rename_all(~ str_c(., "_median")) %>% 
+  relocate(ipl12s_median)
+```
+
+SDs:
+
+```{r}
+df_baseline %>% 
+  select(contains("12s")) %>% 
+  summarize_all(~ sd(., na.rm = T)) %>% 
+  rename_all(~ str_c(., "_sd")) %>% 
+  relocate(ipl12s_sd)
+```
+
+### By Gender
+
+Tabulation:
+
+```{r}
+df_baseline %>% count(female)
+```
+
+Weighted means by gender:
+
+```{r}
+df_baseline %>%
+  mutate(
+    read = case_when(
+      read == "Very well" ~ 5,
+      read == "Well" ~ 4,
+      read == "Moderately well" ~ 3,
+      read == "Not well" ~ 2,
+      read == "Not well at all" ~ 1
+    ),
+    speak = case_when(
+      speak == "Very well" ~ 5,
+      speak == "Well" ~ 4,
+      speak == "Moderately well" ~ 3,
+      speak == "Not well" ~ 2,
+      speak == "Not well at all" ~ 1
+    ),
+    citizen = recode(citizen, "No" = "0", "Yes" = "1", default = NA_character_) %>% as.integer(),
+    cosponsorship = recode(cosponsorship, "No" = "0", "Yes" = "1", default = NA_character_) %>% as.integer()
+  ) %>% 
+  drop_na(female) %>% 
+  group_by(female) %>% 
+  summarise_at(
+    vars(years_in_us, citizen, age, age_at_arrival, houseHoldIncome, unemployment, cosponsorship, householdChildren, householdSize, educationLevelNumeric, contains("12s")), 
+    ~ weighted.mean(., weight, na.rm = T)
+  ) %>% 
+  pivot_longer(-female) %>% 
+  pivot_wider(names_from = female, values_from = value) %>% 
+  select(variable = name, male = `0`, female = `1`) %>% 
+  mutate_at(vars(contains("ale")), ~ round(., 4))
 ```
 
 
@@ -75,7 +160,7 @@ df_baseline %>%
 Correlations
 
 ```{r}
-x <-df_baseline %>% select(contains("12s"))
+x <- df_baseline %>% select(contains("12s"))
 ggcorrplot(cor(x, use = "pairwise.complete.obs"), hc.order = TRUE, type = "lower", p.mat = cor_pmat(x), insig = "blank", lab = TRUE)
 rm(x)
 ```
