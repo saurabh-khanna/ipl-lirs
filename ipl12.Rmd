@@ -31,7 +31,8 @@ df_baseline <-
     female = recode(gender, "Male" = "0", "Female" = "1", .default = NA_character_) %>% as.character %>% parse_integer(),
     unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
     unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
-    unemployment = unemploymentBeneBaseline %>% as.integer()
+    unemployment = unemploymentBeneBaseline %>% as.integer(),
+    householdAdults = householdSize - householdChildren
   )
 
 # df_asr <-
@@ -47,6 +48,8 @@ df_baseline <-
 #   write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
 #df_baseline %>% select(contains("12"))
 ```
+
+
 
 ## Summary statistics
 
@@ -787,6 +790,8 @@ df_baseline %>%
 df_baseline <-
   df_baseline %>% 
   mutate(
+    read_c = read,
+    speak_c = speak,
     read = case_when(
       read == "Very well" ~ 5,
       read == "Well" ~ 4,
@@ -1079,6 +1084,8 @@ df_baseline %>%
 ```
 
 
+Overall IPL-12 score by gender:
+
 ```{r}
 df_baseline %>%
   group_by(female) %>% 
@@ -1091,6 +1098,9 @@ df_baseline %>%
   geom_col() +
   theme_ipsum()
 ```
+
+
+IPL-12 score components by gender:
 
 ```{r, out.width="100%"}
 df_baseline %>% 
@@ -1111,6 +1121,50 @@ df_baseline %>%
   theme_ipsum()
 ```
 
+#### By each IPL-12 question
+
+```{r}
+df_baseline %>% tabyl(connectionHc, female)
+```
+
+```{r}
+df_baseline %>% tabyl(outsider, female)
+```
+
+```{r}
+df_baseline %>% tabyl(polUnderstanding, female)
+```
+
+```{r}
+df_baseline %>% tabyl(polDiscuss, female)
+```
+
+```{r}
+df_baseline %>% tabyl(dinner, female)
+```
+
+```{r}
+df_baseline %>% tabyl(contactsInUs, female)
+```
+
+```{r}
+df_baseline %>% tabyl(read_c, female)
+```
+
+```{r}
+df_baseline %>% tabyl(speak_c, female)
+```
+
+```{r}
+df_baseline %>% tabyl(seeDoctor, female)
+```
+
+```{r}
+df_baseline %>% tabyl(searchJob, female)
+```
+
+
+Regressions:
 
 #### Female
 
@@ -1175,6 +1229,27 @@ knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.mode
 ```
 
 
+#### Female $\times$ Household adults
+
+```{r, results='asis'}
+lm1 <- df_baseline %>% lm_robust(ipl12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+lm2 <- df_baseline %>% lm_robust(ling12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+lm3 <- df_baseline %>% lm_robust(pol12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+lm4 <- df_baseline %>% lm_robust(soc12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+lm5 <- df_baseline %>% lm_robust(econ12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+lm6 <- df_baseline %>% lm_robust(psy12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+lm7 <- df_baseline %>% lm_robust(nav12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
+
+knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+```
+
+
 #### Female $\times$ Marital Status
 
 ```{r, results='asis'}
@@ -1194,29 +1269,6 @@ lm7 <- df_baseline %>% lm_robust(nav12s ~ female * maritalStatus, data = ., se_t
 
 knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
