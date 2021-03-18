@@ -82,10 +82,24 @@ df_twilio <-
 # removing redundant datasets
 rm(df_whatsapp_twilio, df_sms_twilio)
 
-# failed delivery numbers to be excluded later
-failed_nos <- 
-  read_csv(here::here("data", "merge/failed_messages.csv")) %>% 
+# failed/undelivered delivery numbers to be excluded later
+errors_sep2020 <- 
+  read_csv(here::here("data", "merge/error_reports/errors1_sep2020.csv")) %>% 
   mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
+
+errors_oct2020 <- 
+  read_csv(here::here("data", "merge/error_reports/errors1_oct2020.csv")) %>% 
+  bind_rows(read_csv(here::here("data", "merge/error_reports/errors2_oct2020.csv"))) %>% 
+  mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
+
+errors_feb2021 <- 
+  read_csv(here::here("data", "merge/error_reports/errors1_feb2021.csv")) %>% 
+  bind_rows(read_csv(here::here("data", "merge/error_reports/errors2_feb2021.csv"))) %>% 
+  mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
   distinct(number_from) %>% 
   unlist()
 ```
@@ -97,7 +111,6 @@ df_main <-
   df_updated %>% 
   inner_join(df_twilio, ., by = "number_from") %>%
   inner_join(df_baseline, by = "study_ID") %>% 
-  filter(!(number_from %in% failed_nos)) %>% 
   mutate(
     lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
     lang_match = 
@@ -119,6 +132,9 @@ df_main <-
     id_matched = (yearArrive == q18_response),
     wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020", "Nov 2020", "Feb 2021"))
   ) %>% 
+  filter(!((number_from %in% errors_sep2020) & wave == "Sep 2020")) %>%
+  filter(!((number_from %in% errors_oct2020) & wave == "Oct 2020")) %>%
+  filter(!((number_from %in% errors_feb2021) & wave == "Feb 2021")) %>%
   mutate_at(vars(q1_response:q18_response), str_to_lower) %>% 
   mutate_at(vars(q1_response:q18_response), ~ str_replace_all(., "[.]", ""))
 ```
@@ -127,7 +143,12 @@ df_main <-
 ```{r, eval = F}
 df_main %>% count(wave)
 
-df_main %>% select(contains(""))
+df_main %>% filter(wave == "Sep 2020") %>% 
+  inner_join(df_main %>% filter(wave == "Oct 2020"), by = "study_ID") %>% 
+  inner_join(df_main %>% filter(wave == "Nov 2020"), by = "study_ID") %>% 
+  inner_join(df_main %>% filter(wave == "Feb 2021"), by = "study_ID")
+
+781 / (3762/4)
 ```
 
 
