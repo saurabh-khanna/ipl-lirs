@@ -85,13 +85,21 @@ rm(df_whatsapp_twilio, df_sms_twilio)
 # failed/undelivered delivery numbers to be excluded later
 errors_sep2020 <- 
   read_csv(here::here("data", "merge/error_reports/errors1_sep2020.csv")) %>% 
-  mutate(number_from = parse_number(`To Number`) %>% as.character()) %>% 
+  bind_rows(read_csv(here::here("data", "merge/error_reports/errors2_sep2020.csv"))) %>% 
+  mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
   distinct(number_from) %>% 
   unlist()
 
 errors_oct2020 <- 
   read_csv(here::here("data", "merge/error_reports/errors1_oct2020.csv")) %>% 
   bind_rows(read_csv(here::here("data", "merge/error_reports/errors2_oct2020.csv"))) %>% 
+  mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
+
+errors_nov2020 <- 
+  read_csv(here::here("data", "merge/error_reports/errors1_nov2020.csv")) %>% 
+  bind_rows(read_csv(here::here("data", "merge/error_reports/errors2_nov2020.csv"))) %>% 
   mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
   distinct(number_from) %>% 
   unlist()
@@ -134,6 +142,7 @@ df_main <-
   ) %>% 
   filter(!((number_from %in% errors_sep2020) & wave == "Sep 2020")) %>%
   filter(!((number_from %in% errors_oct2020) & wave == "Oct 2020")) %>%
+  filter(!((number_from %in% errors_nov2020) & wave == "Nov 2020")) %>%
   filter(!((number_from %in% errors_feb2021) & wave == "Feb 2021")) %>%
   mutate_at(vars(q1_response:q18_response), str_to_lower) %>% 
   mutate_at(vars(q1_response:q18_response), ~ str_replace_all(., "[.]", ""))
@@ -148,7 +157,7 @@ df_main %>% filter(wave == "Sep 2020") %>%
   inner_join(df_main %>% filter(wave == "Nov 2020"), by = "study_ID") %>% 
   inner_join(df_main %>% filter(wave == "Feb 2021"), by = "study_ID")
 
-781 / (3762/4)
+781 / (3616/4)
 ```
 
 
