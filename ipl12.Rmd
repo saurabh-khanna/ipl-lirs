@@ -1,5 +1,5 @@
 ---
-title: "Refugee Integration Paper Descriptives"
+title: "Refugee Integration Paper Results"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -35,8 +35,23 @@ df_baseline <-
     householdAdults = householdSize - householdChildren
   )
 
-# df_asr <-
-#   read_dta(here::here("data", "ASR_2017_data.dta"))
+df_asr <-
+  read_dta(here::here("data/ASR_2017", "ASR_2017_data.dta")) %>% 
+  mutate(
+    years_in_us = 2018 - parse_number(as.character(qn1jyear)),
+    female = if_else(qn1f == 2, 1L, 0L),
+    employed = if_else(ui_emprate == 1, 1L, 0L),
+    household_size = numppl,
+    earnings = parse_number(as.character(ui_qn8a_annual)),
+    earnings = if_else(earnings > 300000, NA_real_, earnings),
+    public_assistance_received = if_else(ui_soi_pubassist == 1, 1L, 0L),
+    cash_assistance_received = if_else(ui_cashassist == 1, 1L, 0L),
+    medicaidrma_received = if_else(ui_medicaidrma == 1, 1L, 0L),
+    legal_permanent_resident = if_else(ui_lpr == 1, 1L, 0L),
+    baseline_school_years = parse_number(as.character(qn2a)),
+    speak_english_well_now = if_else(qn4b <= 2, 1L, 0L),
+    speak_english_well_baseline = if_else(qn4a <= 2, 1L, 0L)
+  )
 ```
 
 
@@ -1271,6 +1286,14 @@ knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.mode
 ```
 
 
+## ASR data
 
+### Key statistics by gender
+
+```{r}
+df_asr %>% 
+  compareGroups::compareGroups(female ~ years_in_us + employed + earnings + public_assistance_received + cash_assistance_received + medicaidrma_received + household_size + legal_permanent_resident + baseline_school_years + speak_english_well_baseline + speak_english_well_now, data = .) %>% 
+  compareGroups::createTable()
+```
 
 
