@@ -37,8 +37,8 @@ df_updated <-
   mutate(
     wave = if_else(wave == "8-2020", "9-2020", wave),
     wave = if_else(wave == "12-2020", "11-2020", wave),
-    wave = if_else(wave == "12-2020", "11-2020", wave),
-    wave = if_else(wave == "3-2021", "2-2021", wave)
+    wave = if_else(wave == "3-2021", "2-2021", wave),
+    wave = if_else(wave == "5-2021", "6-2021", wave)
   ) %>% # edited misnumbered waves here
   arrange(number_from, desc(date)) %>%
   distinct(wave, number_from, .keep_all = TRUE) %>%
@@ -138,7 +138,7 @@ df_main <-
     survey_started = (q1_response != "No Data"),
     survey_completed = (q18_response != "No Data"),
     id_matched = (yearArrive == q18_response),
-    wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020", "Nov 2020", "Feb 2021"))
+    wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020", "Nov 2020", "Feb 2021", "Jun 2021"))
   ) %>% 
   filter(!((number_from %in% errors_sep2020) & wave == "Sep 2020")) %>%
   filter(!((number_from %in% errors_oct2020) & wave == "Oct 2020")) %>%
@@ -155,9 +155,10 @@ df_main %>% count(wave)
 df_main %>% filter(wave == "Sep 2020") %>% 
   inner_join(df_main %>% filter(wave == "Oct 2020"), by = "study_ID") %>% 
   inner_join(df_main %>% filter(wave == "Nov 2020"), by = "study_ID") %>% 
-  inner_join(df_main %>% filter(wave == "Feb 2021"), by = "study_ID")
+  inner_join(df_main %>% filter(wave == "Feb 2021"), by = "study_ID") %>% 
+  inner_join(df_main %>% filter(wave == "Jun 2021"), by = "study_ID")
 
-781 / (3616/4)
+771 / (4626/5)
 ```
 
 
@@ -246,7 +247,7 @@ df_main %>%
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
   pivot_longer(cols = -wave, names_to = "name", values_to = "value") %>% 
   mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(name, value)) +
   geom_col(color = "black") +
   scale_y_continuous(
@@ -275,7 +276,7 @@ df_main %>%
   mutate(
     row_nas = rowSums(!is.na(.)) / 18
   ) %>%
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>%
   ggplot(aes(row_nas)) +
   geom_histogram(fill = "gray", color = "black", binwidth = 0.05) +
   geom_vline(aes(xintercept = mean(row_nas, na.rm = TRUE)), linetype = "dashed", color = "blue") +
@@ -313,7 +314,7 @@ df_main %>%
     question = str_replace(question, "q", "Question "),
     question = question %>% fct_inorder() %>% fct_rev()
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(question, answers, fill = conditional)) +
   geom_col() +
   scale_y_continuous(
@@ -397,7 +398,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>%
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -474,7 +475,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(ans, percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -555,7 +556,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -636,7 +637,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -718,7 +719,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -799,7 +800,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -878,7 +879,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -960,7 +961,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1040,7 +1041,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1120,7 +1121,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1202,7 +1203,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1284,7 +1285,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1365,7 +1366,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1448,7 +1449,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1528,7 +1529,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1609,7 +1610,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
@@ -1642,7 +1643,7 @@ df_main %>%
     ans = if_else(ans >= 1900 & ans <= 2020, ans, NA_real_) %>% as.integer()
   ) %>%
   drop_na(ans) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(ans)) +
   geom_histogram() +
   facet_wrap(vars(wave)) +
@@ -1677,7 +1678,7 @@ df_main %>%
   mutate(
     percent = count1 / count2
   ) %>% 
-  filter(wave %in% c("Nov 2020", "Feb 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
   ggplot(aes(factor(ans), percent)) +
   geom_col() +
   geom_text(aes(label = count1), vjust = -0.3) +
