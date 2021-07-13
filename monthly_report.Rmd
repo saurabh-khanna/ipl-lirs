@@ -22,10 +22,14 @@ knitr::opts_chunk$set(fig.pos = 'H')
 # Libraries
 pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies, zoo, hrbrthemes)
 extrafont::loadfonts()
+```
 
+```{r}
 # baseline data
 df_baseline <- read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv"))
+```
 
+```{r}
 # google sheet data
 df_updated <- 
   read_xlsx(here::here("data/merge", "lirs_postresponses_updated_all.xlsx")) %>% 
@@ -63,7 +67,9 @@ df_updated <-
   bind_rows(df_updated, df_updated_manual) %>% 
   arrange(number_from, desc(date)) %>% 
   distinct(wave, number_from, .keep_all = TRUE)
+```
 
+```{r}
 # twilio contact data
 df_whatsapp_twilio <- read_xlsx(here::here("data/merge", "whatsapp_twilio.xlsx"))
 df_sms_twilio <- read_xlsx(here::here("data/merge", "sms_twilio.xlsx"))
@@ -81,7 +87,10 @@ df_twilio <-
 
 # removing redundant datasets
 rm(df_whatsapp_twilio, df_sms_twilio)
+```
 
+
+```{r}
 # failed/undelivered delivery numbers to be excluded later
 errors_sep2020 <- 
   read_csv(here::here("data", "merge/error_reports/errors1_sep2020.csv")) %>% 
