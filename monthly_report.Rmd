@@ -1,7 +1,7 @@
 ---
 title: "LIRS Rapid Response Survey: 2020-21 Follow-up Results"
 author: "Immigration Policy Lab"
-date: "`r Sys.Date()`"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   pdf_document:
     toc: yes
@@ -20,7 +20,7 @@ knitr::opts_chunk$set(fig.pos = 'H')
 
 ```{r}
 # Libraries
-pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies, zoo, hrbrthemes)
+pacman::p_load(tidyverse, readxl, janitor, lubridate, extrafont, estimatr, fastDummies, zoo, hrbrthemes, compareGroups)
 extrafont::loadfonts()
 ```
 
@@ -67,6 +67,8 @@ df_updated <-
   bind_rows(df_updated, df_updated_manual) %>% 
   arrange(number_from, desc(date)) %>% 
   distinct(wave, number_from, .keep_all = TRUE)
+
+# df_updated %>% count(wave)
 ```
 
 ```{r}
@@ -86,11 +88,17 @@ df_twilio <-
   distinct(number_from, .keep_all = TRUE)
 
 # removing redundant datasets
-rm(df_whatsapp_twilio, df_sms_twilio)
+rm(df_whatsapp_twilio, df_sms_twilio, df_updated_manual)
+
+df_twilio %>% count(medium)
+
+df_twilio %>% 
+  inner_join(df_baseline, by = "study_ID") %>%
+  anti_join(df_updated, by = "number_from")
 ```
 
 
-```{r}
+```{r, eval=F}
 # failed/undelivered delivery numbers to be excluded later
 errors_sep2020 <- 
   read_csv(here::here("data", "merge/error_reports/errors1_sep2020.csv")) %>% 
@@ -119,15 +127,25 @@ errors_feb2021 <-
   mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
   distinct(number_from) %>% 
   unlist()
+
+errors_jun2021 <- 
+  read_csv(here::here("data", "merge/error_reports/errors1_jun2021.csv")) %>% 
+  bind_rows(read_csv(here::here("data", "merge/error_reports/errors2_jun2021.csv"))) %>% 
+  mutate(number_from = parse_number(`To`) %>% as.character()) %>% 
+  distinct(number_from) %>% 
+  unlist()
 ```
 
 
 ```{r}
 # merging it all together
 df_main <-
-  df_updated %>% 
-  inner_join(df_twilio, ., by = "number_from") %>%
-  inner_join(df_baseline, by = "study_ID") %>% 
+  # df_updated %>%
+  # inner_join(df_twilio, ., by = "number_from") %>%
+  # inner_join(df_baseline, by = "study_ID") %>%
+  df_twilio %>%
+  inner_join(df_baseline, by = "study_ID") %>%
+  left_join(df_updated, by = "number_from") %>%
   mutate(
     lang = if_else(lang %in% c("Don't know", "Refused"), NA_character_, lang),
     lang_match = 
@@ -146,20 +164,145 @@ df_main <-
       ),
     survey_started = (q1_response != "No Data"),
     survey_completed = (q18_response != "No Data"),
-    id_matched = (yearArrive == q18_response),
+    id_matched = if_else(yearArrive == q18_response, 1L, 0L),
     wave = as.yearmon(wave, "%m-%Y") %>% as.character() %>% factor(levels = c("Sep 2020", "Oct 2020", "Nov 2020", "Feb 2021", "Jun 2021"))
   ) %>% 
-  filter(!((number_from %in% errors_sep2020) & wave == "Sep 2020")) %>%
-  filter(!((number_from %in% errors_oct2020) & wave == "Oct 2020")) %>%
-  filter(!((number_from %in% errors_nov2020) & wave == "Nov 2020")) %>%
-  filter(!((number_from %in% errors_feb2021) & wave == "Feb 2021")) %>%
+  # filter(!((number_from %in% errors_sep2020) & wave == "Sep 2020")) %>%
+  # filter(!((number_from %in% errors_oct2020) & wave == "Oct 2020")) %>%
+  # filter(!((number_from %in% errors_nov2020) & wave == "Nov 2020")) %>%
+  # filter(!((number_from %in% errors_feb2021) & wave == "Feb 2021")) %>%
+  # filter(!((number_from %in% errors_jun2021) & wave == "Jun 2021")) %>%
   mutate_at(vars(q1_response:q18_response), str_to_lower) %>% 
-  mutate_at(vars(q1_response:q18_response), ~ str_replace_all(., "[.]", ""))
+  mutate_at(vars(q1_response:q18_response), ~ str_replace_all(., "[.]", "")) %>% 
+  mutate(
+    female = recode(gender, "Male" = "0", "Female" = "1", .default = NA_character_) %>% as.character %>% parse_integer(),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "Yes", "1", unemploymentBeneBaseline),
+    unemploymentBeneBaseline = if_else(unemploymentBeneBaseline == "No", "0", unemploymentBeneBaseline),
+    unemployment = unemploymentBeneBaseline %>% as.integer(),
+    any_income = 1 - unemployment,
+    food_insecurity = if_else(str_detect(foodSecurity1Baseline, "^Enough"), "0", foodSecurity1Baseline),
+    food_insecurity = if_else(str_detect(food_insecurity, "not enough"), "1", food_insecurity),
+    food_insecurity = if_else(food_insecurity %in% c("0", "1"), food_insecurity, NA_character_),
+    food_insecurity = food_insecurity %>% as.integer(),
+  )
+
+df_main %>% tabyl(medium, wave)
 ```
 
 
+
+
+
+
+```{r}
+# Sep 2020
+#responded <- tibble(c(0,0,0))
+
+df_main %>%
+  filter(medium == "WhatsApp", wave == "Sep 2020") %>%
+  mutate(
+    responded = if_else(survey_completed & id_matched, 1L, 0L),
+    responded = if_else(is.na(responded), 0L, responded)  
+  ) %>% 
+  #bind_rows(responded) %>% 
+  compareGroups(responded ~ female + birthYear + householdSize + any_income + food_insecurity, data = .) %>% 
+  createTable(show.all = F)
+```
+
+```{r}
+# Sep 2020
+round(sqrt((0.48^2 / 543) + (0.43^2 / 258)), 2)
+round(sqrt((10.9^2 / 543) + (9.93^2 / 258)), 2)
+round(sqrt((2.44^2 / 543) + (2.20^2 / 258)), 2)
+round(sqrt((0.42^2 / 543) + (0.43^2 / 258)), 2)
+round(sqrt((0.41^2 / 543) + (0.38^2 / 258)), 2)
+```
+
+
+
+
+
+```{r}
+# Feb 2021
+df_main %>%
+  filter(medium == "WhatsApp", wave == "Feb 2021") %>%
+  mutate(
+    responded = if_else(survey_completed & id_matched, 1L, 0L),
+    responded = if_else(is.na(responded), 0L, responded)  
+  ) %>%
+  compareGroups(responded ~ female + birthYear + householdSize + any_income + food_insecurity, data = .) %>% 
+  createTable(show.all = F)
+```
+
+```{r}
+# Feb 2021
+round(sqrt((0.47^2 / 580) + (0.46^2 / 197)), 2)
+round(sqrt((10.6^2 / 580) + (10.5^2 / 197)), 2)
+round(sqrt((2.37^2 / 580) + (2.29^2 / 197)), 2)
+round(sqrt((0.42^2 / 580) + (0.43^2 / 197)), 2)
+round(sqrt((0.39^2 / 580) + (0.41^2 / 197)), 2)
+```
+
+
+
+
+```{r}
+# Jun 2021
+df_main %>%
+  filter(medium == "WhatsApp", wave == "Jun 2021") %>%
+  mutate(
+    responded = if_else(survey_completed & id_matched, 1L, 0L),
+    responded = if_else(is.na(responded), 0L, responded)  
+  ) %>%
+  compareGroups(responded ~ female + birthYear + householdSize + any_income + food_insecurity, data = .) %>% 
+  createTable(show.all = F)
+```
+
+```{r}
+# Jun 2021
+round(sqrt((0.47^2 / 624) + (0.46^2 / 146)), 2)
+round(sqrt((10.5^2 / 624) + (10.7^2 / 146)), 2)
+round(sqrt((2.36^2 / 624) + (2.32^2 / 146)), 2)
+round(sqrt((0.43^2 / 624) + (0.41^2 / 146)), 2)
+round(sqrt((0.40^2 / 624) + (0.38^2 / 146)), 2)
+```
+
+
+
+
+```{r}
+df_main %>%
+  filter(medium == "WhatsApp", wave == "Sep 2020") %>%
+  mutate(
+    responded = if_else(survey_completed & id_matched, 1L, 0L),
+    responded = if_else(is.na(responded), 0L, responded)  
+  ) %>%
+  group_by(responded) %>% 
+  summarize(
+    mean_birth = round(mean(birthYear, na.rm = T), 2),
+    sd_birth = round(sd(birthYear, na.rm = T), 2),
+  )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r, eval = F}
-df_main %>% count(wave)
+df_main %>% tabyl(wave, medium)
+
+df_main %>% filter(medium == "WhatsApp") %>% count(wave)
 
 df_main %>% filter(wave == "Sep 2020") %>% 
   inner_join(df_main %>% filter(wave == "Oct 2020"), by = "study_ID") %>% 
@@ -167,20 +310,7 @@ df_main %>% filter(wave == "Sep 2020") %>%
   inner_join(df_main %>% filter(wave == "Feb 2021"), by = "study_ID") %>% 
   inner_join(df_main %>% filter(wave == "Jun 2021"), by = "study_ID")
 
-771 / (4626/5)
-```
-
-
-```{r}
-# df1 <- df_main %>% filter(wave == "Sep 2020")
-# df2 <- df_main %>% filter(wave == "Oct 2020")
-# df3 <- df_main %>% filter(wave == "Nov 2020")
-# 
-# df1 %>% inner_join(df2, by = "number_from")
-# 960/1021
-# 
-# df2 %>% inner_join(df3, by = "number_from")
-# 946/962
+749 / (4547/5)
 ```
 
 
@@ -256,7 +386,7 @@ df_main %>%
   mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
   pivot_longer(cols = -wave, names_to = "name", values_to = "value") %>% 
   mutate(name = factor(name, levels = c("Survey started", "Survey completed", "Completed if started"))) %>% 
-  filter(wave %in% c("Feb 2021", "Jun 2021")) %>% 
+  filter(wave %in% c("Feb 2021", "Jun 2021")) %>%  # edit if need to see other waves
   ggplot(aes(name, value)) +
   geom_col(color = "black") +
   scale_y_continuous(
@@ -273,13 +403,67 @@ df_main %>%
   )
 ```
 
+
+
+```{r, eval=F}
+# for whatsapp paper table 1
+df_main %>%
+  filter(medium == "WhatsApp") %>% 
+  select(wave, survey_started, survey_completed) %>% 
+  group_by(wave) %>% 
+  summarize(
+    `Survey started` = mean(survey_started, na.rm = TRUE),
+    `Survey completed` = mean(survey_completed, na.rm = TRUE)
+  ) %>% 
+  mutate(`Completed if started` = `Survey completed` / `Survey started`) %>% 
+  pivot_longer(cols = -wave, names_to = "name", values_to = "percentage") %>%
+  full_join(
+    df_main %>% 
+      filter(medium == "WhatsApp") %>%
+      select(wave, survey_started, survey_completed) %>%
+      group_by(wave) %>% 
+      summarize(
+        `Survey started` = sum(survey_started, na.rm = TRUE),
+        `Survey completed` = sum(survey_completed, na.rm = TRUE),
+        `Total` = sum(n(), na.rm = TRUE)
+      ) %>% 
+      pivot_longer(cols = -wave, names_to = "name", values_to = "count"),
+    by = c("wave", "name")
+  ) %>% 
+  arrange(wave)
+
+# march 2022
+df_main %>%
+    filter(medium == "WhatsApp", wave %in% c("Sep 2020", "Feb 2021", "Jun 2021")) %>%
+    select(wave, survey_started, survey_completed, id_matched) %>%
+    mutate(completed_and_matched = (survey_completed & id_matched)) %>% 
+    group_by(wave) %>% 
+    summarize(
+      `Survey started` = sum(survey_started, na.rm = TRUE),
+      `Survey completed` = sum(survey_completed, na.rm = TRUE),
+      `Completed & matched` = sum(completed_and_matched, na.rm = TRUE),
+      `Total` = 806#sum(n(), na.rm = TRUE)
+    ) %>% 
+  mutate(
+    `% Started` = round(100 * `Survey started`/`Total`, 1),
+    `% Completed` = round(100 * `Survey completed`/`Total`, 1),
+    `% Completed & matched` = round(100 * `Completed & matched` / `Total`, 1),
+    `% Completed if started` = round(100 * `Survey completed` / `Survey started`, 1),
+  ) %>% view()
+
+round(100 * 153/168, 1)
+```
+
+
+
+
 \newpage
 
 On average, respondents who started the survey answered around 90% survey questions. 
 
 ```{r}
 df_main %>%
-  filter(survey_started) %>% 
+  filter(survey_started) %>%
   select(wave, q1_response:q18_response) %>%
   na_if("no data") %>% 
   mutate(

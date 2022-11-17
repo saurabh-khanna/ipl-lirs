@@ -175,7 +175,7 @@ df_baseline %>%
 ### General
 
 ```{r}
-df_baseline %>% 
+df_baseline %>%
   ggplot(aes(ipl12s, stat(density), weight = weight)) +
   geom_histogram(color = "black", fill = "grey") +
   geom_density() +
@@ -1309,9 +1309,11 @@ knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.mode
 ### Key statistics by gender
 
 ```{r}
-df_asr2017 %>% 
+df_asr2017 %>%
   compareGroups::compareGroups(female ~ years_in_us + employed + earnings + public_assistance_received + cash_assistance_received + medicaidrma_received + household_size + legal_permanent_resident + baseline_school_years + speak_english_well_baseline + speak_english_well_now, data = .) %>% 
-  compareGroups::createTable()
+  compareGroups::createTable(show.all = T)
+
+#round(sqrt((26.9^2 / 1032) + (27.93^2 / 1364)), 2)
 ```
 
 
