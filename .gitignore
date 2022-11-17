@@ -5,5 +5,5 @@
 *.csv
 *.xlsx
 *.docx
+*.pdf
 data/
-reports/
