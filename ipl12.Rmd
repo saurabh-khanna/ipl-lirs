@@ -1,5 +1,6 @@
 ---
-title: "Refugee Integration Paper Results"
+title: "Gender Gap in Refugee Integration"
+author: "Immigration Policy Lab"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -17,13 +18,13 @@ knitr::opts_chunk$set(fig.pos = 'H')
 
 ```{r}
 # Libraries
-pacman::p_load(tidyverse, haven, readxl, janitor, lubridate, extrafont, hrbrthemes, sf, ggcorrplot, plotly, ggradar, estimatr, texreg, estimatr)
+pacman::p_load(tidyverse, haven, readxl, janitor, lubridate, extrafont, hrbrthemes, sf, ggcorrplot, plotly, ggradar, estimatr, texreg, estimatr, skimr, compareGroups, Hmisc)
 extrafont::loadfonts()
 
 # Parameters
 df_baseline <- 
-  read_csv(here::here("data", "Rapid_response_baseline_cleaned_all_consent.csv")) %>%
-  inner_join(read_csv(here::here("data", "weights.csv")), by = "study_ID") %>% 
+  read_csv("Data/LIRS/LIRS_baseline_data.csv") %>%
+  inner_join(read_csv("Data/LIRS/LIRS_weights.csv"), by = "study_ID") %>% 
   filter(yearArrive >= 2010) %>% 
   mutate(
     years_in_us = 2020 - yearArrive,
@@ -36,7 +37,7 @@ df_baseline <-
   )
 
 df_asr2017 <-
-  read_dta(here::here("data/ASR_2017", "ASR_2017_data.dta")) %>% 
+  read_dta("Data/ASR_2017/ASR_2017_data.dta") %>% 
   mutate(
     years_in_us = 2018 - parse_number(as.character(qn1jyear)),
     female = if_else(qn1f == 2, 1L, 0L),
@@ -54,7 +55,7 @@ df_asr2017 <-
   )
 
 df_asr2018 <-
-  read_dta(here::here("data/ASR_2018", "ASR_2018_data.dta")) %>% 
+  read_dta("Data/ASR_2018/ASR_2018_data.dta") %>% 
   mutate(
     years_in_us = 2018 - parse_number(as.character(qn1jyear)),
     female = if_else(qn1f == 2, 1L, 0L),
@@ -73,16 +74,6 @@ df_asr2018 <-
 ```
 
 
-```{r}
-# extracting data for dlaitin on box
-# df_baseline %>%
-#   select(-contains(c("name", "numb", "phone", "cell", "mobile", "mail", "contact", "address"))) %>%
-#   relocate(ResponseID, ResponseSet, weight) %>% 
-#   write_csv(here::here("data", "baseline_data_with_weights_de-identified_11.03.2020.csv"))
-#df_baseline %>% select(contains("12"))
-```
-
-
 
 ## Summary statistics
 
@@ -93,16 +84,21 @@ Means (unweighted):
 ```{r}
 df_baseline %>% 
   select(contains("12s")) %>% 
-  summarize_all(~ mean(., na.rm = T)) %>% 
-  rename_all(~ str_c(., "_mean")) %>% 
-  relocate(ipl12s_mean)
+  skim() %>% 
+  as_tibble() %>% 
+  transmute(score = skim_variable, completion = round(complete_rate, 2), mean = numeric.mean, sd = numeric.sd, min = numeric.p0, max = numeric.p100) %>% 
+  clean_names(case = "title") %>% 
+  rename(SD = Sd) %>% 
+  xtable::xtable()
 ```
+
 Means (Weighted using sample weights):
 
 ```{r}
 df_baseline %>% 
   select(contains("12s"), weight) %>% 
-  summarize_at(vars(contains("12s")), ~ weighted.mean(., w = weight, na.rm = T)) %>% 
+  summarize_at(vars(contains("12s")), ~ round(weighted.mean(., w = weight, na.rm = T), 2)) %>%
+  # summarize_at(vars(contains("12s")), ~  round(sqrt(wtd.var(., weight)), 2)) #%>% 
   rename_all(~ str_c(., "_mean")) %>% 
   relocate(ipl12s_mean)
 ```
@@ -121,8 +117,8 @@ SDs:
 
 ```{r}
 df_baseline %>% 
-  select(contains("12s")) %>% 
-  summarize_all(~ sd(., na.rm = T)) %>% 
+  select(contains("12s"), weight) %>% 
+  summarize_at(vars(contains("12s")), ~  round(sqrt(wtd.var(., weight)), 2)) %>% 
   rename_all(~ str_c(., "_sd")) %>% 
   relocate(ipl12s_sd)
 ```
@@ -866,7 +862,7 @@ lm6 <- df_baseline %>% lm_robust(psy12s ~ female + read + speak + householdSize 
 
 lm7 <- df_baseline %>% lm_robust(nav12s ~ female + read + speak + householdSize + bcountryBinned + educationTerciles, data = ., se_type = "stata", weights = weight)
 
-knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3, dcolumn = TRUE, booktabs = TRUE, float.pos = "H", caption = "", include.rsquared = F, include.adjrs = F, include.rmse = F, include.nclust = F)
 ```
 
 
@@ -1199,24 +1195,52 @@ df_baseline %>% tabyl(searchJob, female)
 
 Regressions:
 
+```{r}
+df_baseline <-
+  df_baseline %>%
+  mutate(
+    read = case_when(
+      read == "Very well" ~ 5,
+      read == "Well" ~ 4,
+      read == "Moderately well" ~ 3,
+      read == "Not well" ~ 2,
+      read == "Not well at all" ~ 1
+    ),
+    speak = case_when(
+      speak == "Very well" ~ 5,
+      speak == "Well" ~ 4,
+      speak == "Moderately well" ~ 3,
+      speak == "Not well" ~ 2,
+      speak == "Not well at all" ~ 1
+    ),
+    citizen = recode(citizen, "No" = "0", "Yes" = "1", default = NA_character_) %>% as.integer(),
+    cosponsorship = recode(cosponsorship, "No" = "0", "Yes" = "1", default = NA_character_) %>% as.integer(),
+    educationLevelNumeric = if_else(educationLevel == "Received Master’s degree or higher", 7, educationLevelNumeric)
+  )
+
+df_baseline %>% tabyl(educationLevel, educationLevelNumeric)
+```
+
+
 #### Female
 
+
 ```{r, results='asis'}
-lm1 <- df_baseline %>% lm_robust(ipl12s ~ female, data = ., se_type = "stata", weights = weight)
+lm1 <- df_baseline %>% lm_robust(ipl12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-lm2 <- df_baseline %>% lm_robust(ling12s ~ female, data = ., se_type = "stata", weights = weight)
+lm2 <- df_baseline %>% lm_robust(econ12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-lm3 <- df_baseline %>% lm_robust(pol12s ~ female, data = ., se_type = "stata", weights = weight)
+lm3 <- df_baseline %>% lm_robust(ling12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-lm4 <- df_baseline %>% lm_robust(soc12s ~ female, data = ., se_type = "stata", weights = weight)
+lm4 <- df_baseline %>% lm_robust(soc12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-lm5 <- df_baseline %>% lm_robust(econ12s ~ female, data = ., se_type = "stata", weights = weight)
+lm5 <- df_baseline %>% lm_robust(psy12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-lm6 <- df_baseline %>% lm_robust(psy12s ~ female, data = ., se_type = "stata", weights = weight)
+lm6 <- df_baseline %>% lm_robust(pol12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-lm7 <- df_baseline %>% lm_robust(nav12s ~ female, data = ., se_type = "stata", weights = weight)
+lm7 <- df_baseline %>% lm_robust(nav12s ~ female + age + houseHoldIncome + unemployment + educationLevelNumeric + citizen + cosponsorship, data = ., se_type = "stata", weights = weight)
 
-knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Aggregate", "Economic", "Linguistic", "Social", "Psychological", "Political", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3, dcolumn = TRUE, booktabs = TRUE, float.pos = "H", caption = "", include.rsquared = F, include.adjrs = F, include.rmse = F, include.nclust = F, omit.coef = "Intercept", custom.note = "%stars. All regressions use population-level survey weights generated from 9693 refugees resettled by the LIRS.", custom.coef.names = c("Female", "Age", "Household income", "Unemployed", "Education Level", "Citizenship", "Cosponsorship"))
 ```
 
 
@@ -1237,7 +1261,7 @@ lm6 <- df_baseline %>% lm_robust(psy12s ~ female * years_in_us, data = ., se_typ
 
 lm7 <- df_baseline %>% lm_robust(nav12s ~ female * years_in_us, data = ., se_type = "stata", weights = weight)
 
-knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+texreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Ling", "Pol", "Soc", "Econ", "Psych", "Nav"), stars = c(0.01, 0.05, 0.1), digits = 3)
 ```
 
 
@@ -1258,7 +1282,7 @@ lm6 <- df_baseline %>% lm_robust(psy12s ~ female * householdChildren, data = ., 
 
 lm7 <- df_baseline %>% lm_robust(nav12s ~ female * householdChildren, data = ., se_type = "stata", weights = weight)
 
-knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+texreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Ling", "Pol", "Soc", "Econ", "Psych", "Nav"), stars = c(0.01, 0.05, 0.1), digits = 3)
 ```
 
 
@@ -1279,7 +1303,7 @@ lm6 <- df_baseline %>% lm_robust(psy12s ~ female * householdAdults, data = ., se
 
 lm7 <- df_baseline %>% lm_robust(nav12s ~ female * householdAdults, data = ., se_type = "stata", weights = weight)
 
-knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+texreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Ling", "Pol", "Soc", "Econ", "Psych", "Nav"), stars = c(0.01, 0.05, 0.1), digits = 3)
 ```
 
 
@@ -1300,7 +1324,7 @@ lm6 <- df_baseline %>% lm_robust(psy12s ~ female * maritalStatus, data = ., se_t
 
 lm7 <- df_baseline %>% lm_robust(nav12s ~ female * maritalStatus, data = ., se_type = "stata", weights = weight)
 
-knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Linguistic", "Political", "Social", "Economic", "Psychological", "Navigational"), stars = c(0.01, 0.05, 0.1), digits = 3)
+texreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.model.names = c("Overall", "Ling", "Pol", "Soc", "Econ", "Psych", "Nav"), stars = c(0.01, 0.05, 0.1), digits = 3)
 ```
 
 
@@ -1312,8 +1336,6 @@ knitreg(list(lm1, lm2, lm3, lm4, lm5, lm6, lm7), include.ci = FALSE, custom.mode
 df_asr2017 %>%
   compareGroups::compareGroups(female ~ years_in_us + employed + earnings + public_assistance_received + cash_assistance_received + medicaidrma_received + household_size + legal_permanent_resident + baseline_school_years + speak_english_well_baseline + speak_english_well_now, data = .) %>% 
   compareGroups::createTable(show.all = T)
-
-#round(sqrt((26.9^2 / 1032) + (27.93^2 / 1364)), 2)
 ```
 
 
@@ -1324,5 +1346,51 @@ df_asr2017 %>%
 ```{r}
 df_asr2018 %>% 
   compareGroups::compareGroups(female ~ years_in_us + employed + earnings + public_assistance_received + cash_assistance_received + medicaidrma_received + household_size + legal_permanent_resident + baseline_school_years + speak_english_well_baseline + speak_english_well_now, data = .) %>% 
-  compareGroups::createTable()
+  compareGroups::createTable(show.all = T)
+```
+
+## LIRS data
+
+### Key statistics by gender
+
+```{r}
+df_baseline %>% 
+  select(female, contains("12s")) %>% 
+  drop_na(female) %>% 
+  compareGroups::compareGroups(female ~ ipl12s + psy12s + econ12s + nav12s + soc12s + pol12s + ling12s, data = .) %>% 
+  compareGroups::createTable() %>% 
+  compareGroups::export2latex()
+```
+
+
+
+```{r}
+df_baseline %>%
+  mutate(
+    read = case_when(
+      read == "Very well" ~ 5,
+      read == "Well" ~ 4,
+      read == "Moderately well" ~ 3,
+      read == "Not well" ~ 2,
+      read == "Not well at all" ~ 1
+    ),
+    speak = case_when(
+      speak == "Very well" ~ 5,
+      speak == "Well" ~ 4,
+      speak == "Moderately well" ~ 3,
+      speak == "Not well" ~ 2,
+      speak == "Not well at all" ~ 1
+    ),
+    citizen = recode(citizen, "No" = "0", "Yes" = "1", default = NA_character_) %>% as.integer(),
+    cosponsorship = recode(cosponsorship, "No" = "0", "Yes" = "1", default = NA_character_) %>% as.integer()
+  ) %>% 
+  select(female, years_in_us, citizen, age, age_at_arrival, houseHoldIncome, unemployment, cosponsorship, householdChildren, householdSize, education = educationLevelNumeric, read, speak) %>% 
+  drop_na(female) %>% 
+  compareGroups(female ~ years_in_us + citizen + age + age_at_arrival + houseHoldIncome + unemployment + cosponsorship + householdChildren + householdSize + education + read + speak, data = .) %>% 
+  createTable() %>% 
+  export2latex()
+
+
+
+df_baseline %>% select(contains("country")) %>% drop_na(bcountry) %>% count(bcountry) %>% rename(country_of_origin = bcountry) %>% arrange(-n) %>% view()
 ```
